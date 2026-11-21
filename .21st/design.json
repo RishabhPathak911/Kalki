@@ -1,0 +1,79 @@
+{
+    "version":  1,
+    "project":  {
+                    "name":  "kalki",
+                    "productType":  "Offline multi-tenant AIOps console",
+                    "stack":  [
+                                  "Vite",
+                                  "React",
+                                  "TypeScript",
+                                  "Recharts",
+                                  "Go"
+                              ]
+                },
+    "sources":  {
+                    "tokens":  [
+
+                               ],
+                    "components":  [
+
+                                   ],
+                    "assets":  [
+                                   "public/assets"
+                               ],
+                    "instructions":  [
+
+                                     ]
+                },
+    "design":  {
+                   "colorMode":  "dark",
+                   "colors":  {
+
+                              },
+                   "typography":  {
+
+                                  },
+                   "spacing":  {
+
+                               },
+                   "radius":  {
+
+                              },
+                   "shadows":  {
+
+                               },
+                   "motion":  {
+
+                              },
+                   "density":  "compact operational console"
+               },
+    "components":  {
+                       "installed":  [
+
+                                     ],
+                       "preferredPrimitives":  [
+
+                                               ],
+                       "patterns":  [
+
+                                    ]
+                   },
+    "constraints":  {
+                        "must":  [
+
+                                 ],
+                        "avoid":  [
+
+                                  ]
+                    },
+    "decisions":  [
+                      "Phase 7 user-selected login: 50x30 Canvas membrane, #08080a background, liquid-glass frame around opaque #0d0f13 card; reduced-motion and offline assets only. 21st Login Minimal metadata reviewed; existing form reused without new dependencies.",
+                      "Use the existing Kalki eye; background #08090c, cards #101319, borders #202632. Reserve color for status.",
+                      "System fonts only; tabular monospace for measurements and hashes.",
+                      "21st Dashboard Sidebar metadata informed navigation hierarchy; no marketplace code or runtime service added."
+                  ],
+    "evidence":  [
+
+                 ],
+    "generatedAt":  "2026-11-20T22:02:04.307Z"
+}

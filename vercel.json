@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix dashboard",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": { "api/gateway.js": { "maxDuration": 60 } },
+  "rewrites": [
+    { "source": "/region/:region/:path*", "destination": "/api/gateway?region=:region&path=:path*" },
+    { "source": "/local-proof/:path*", "destination": "/api/gateway?local=true" },
+    { "source": "/api/deployment-status", "destination": "/api/gateway?status=true" },
+    { "source": "/app", "destination": "/app/index.html" },
+    { "source": "/app/", "destination": "/app/index.html" },
+    { "source": "/app/:view(fleet|incidents|proof|audit|demo|validation|limitations)", "destination": "/app/index.html" }
+  ]
+}

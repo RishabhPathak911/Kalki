@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Local OS metrics and TCP probes",
+    "module": "local",
+    "collector": "Prana",
+    "categories": [
+      "live"
+    ],
+    "status": "implemented",
+    "type": "live",
+    "id": "prana/local"
+  },
+  {
+    "name": "NAB dataset replay",
+    "module": "dataset-replay",
+    "collector": "Prana",
+    "categories": [
+      "replayed real trace"
+    ],
+    "status": "implemented",
+    "type": "replayed_real_trace",
+    "id": "prana/nab"
+  },
+  {
+    "name": "Loghub OpenSSH and Linux replay",
+    "module": "log-replay",
+    "collector": "Prana",
+    "categories": [
+      "replayed real trace"
+    ],
+    "status": "implemented",
+    "type": "replayed_real_trace",
+    "id": "prana/loghub"
+  }
+]

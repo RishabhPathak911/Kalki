@@ -1,0 +1,37 @@
+# Enforced by tier1/policy. Container sections are also allowed root fields.
+fields:
+  tenant: {type: string, format: identifier}
+  collector_id: {type: string, format: pseudonym}
+  region: {type: string, format: identifier, enum: [ap-south-1, eu-central-1]}
+  seq: {type: integer, min: 1, max: 9007199254740991}
+  batch_id: {type: string, format: hex32}
+  collected_at: {type: string, format: utc_rfc3339_milliseconds}
+  sent_at: {type: string, format: utc_rfc3339_milliseconds}
+  source: {type: string, enum: [live, replayed_real_trace, simulated]}
+metric_statistics:
+  min: {type: float}
+  max: {type: float}
+  avg: {type: float}
+  p95: {type: float}
+  count: {type: float, min: 0}
+metrics:
+  collector_cpu_pct: {min: 0, max: 100}
+  wal_depth: {min: 0, max: 1000000000}
+  wal_buffer_full: {min: 0, max: 1}
+  cpu_pct: {min: 0, max: 100}
+  mem_pct: {min: 0, max: 100}
+  disk_pct: {min: 0, max: 100}
+  bandwidth_mbps: {min: 0, max: 1000000}
+  latency_ms: {min: 0, max: 60000}
+  packet_loss_pct: {min: 0, max: 100}
+  service_up: {min: 0, max: 1}
+risk_events:
+  type: {type: string, enum: [bruteforce_suspected]}
+  severity: {type: string, enum: [warning]}
+  count: {type: integer, min: 5, max: 1000000000}
+  window_sec: {type: integer, min: 60, max: 60}
+  source_pseudonym: {type: string, format: pseudonym}
+redaction_counts:
+  type: map
+  values: nonnegative_integer
+  keys: [aws_key, bearer, jwt, private_key, credential, high_entropy]

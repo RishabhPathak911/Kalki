@@ -1,0 +1,10 @@
+data
+.git
+.playwright-mcp
+dashboard/node_modules
+dashboard/dist
+dist
+*.wal
+*.key
+*.exe
+.env*

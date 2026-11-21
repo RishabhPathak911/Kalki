@@ -1,0 +1,14 @@
+export type Region='ap-south-1'|'eu-central-1';
+export type Session={token:string;tenant:string;region:Region;expires_at:string};
+export type Stats={min:number;max:number;avg:number;p95:number;count:number};
+export type RecordData={tenant:string;collector_id:string;region:Region;collected_at:string;source:string;metrics:Record<string,Stats>;risk_events:{type:string;count:number}[];redaction_counts:Record<string,number>};
+export type Batch={seq:number;batch_id:string;records:RecordData[];tenant:string;collector_id:string};
+export type NodeData={collector_id:string;tenant:string;region:Region;health:string;connection_state:string;last_seen_at:string;last_seen_age_s:number;metrics:Record<string,Stats>;source_badges:string[];state_transitions:{from:string;to:string;connection_from:string;connection_to:string;reason:string;at:string}[];duplicates_rejected:number;wal_depth:number;records_accepted:number;data_age_s:number};
+export type Signal={metric:string;observed:number;baseline:number;deviation:number;weight:number;direction:string};
+export type Incident={id:string;tenant:string;collector_id:string;region:Region;pattern:string;severity:string;confidence:number;summary:string;signals:Signal[];why_flagged:string;why_not_just_threshold:string;correlated_with:string[];recommended_action:string;why_this_action:string;playbook_steps:string[];detected_at:string;time_to_detect_ms:number;status:string};
+export type Remediation={id:string;incident_id:string;status:string;action:string;result:string;reversible:boolean;target_valid:boolean;tenant_authorized:boolean};
+export type Audit={entries:{index:number;at:string;event:string;status:number;previous_sha256:string;sha256:string}[];head_sha256:string};
+export type Verification={valid:boolean;entries:number;head_sha256:string};
+export type Thresholds={thresholds:Record<string, {warn?:number;critical?:number;stale_after_s?:number;offline_after_s?:number}|number>;playbooks:{pattern:string;recommended_action:string;why:string;steps:string[]}[]};
+export type Proof={batches:{seq:number;batch_id:string;pre_send_bytes:string;pre_send_sha256:string;tier2_echoed_sha256:string;status:string;match_bool:boolean;redaction_counts:Record<string,number>;stripped_count:number}[];counters:Record<string,number|number[]>};
+export type Point=RecordData & {key:string;rendered_at?:string};

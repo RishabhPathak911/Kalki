@@ -1,0 +1,14 @@
+cpu_pct:         {warn: 80, critical: 95}
+collector_cpu_pct: {warn: 15, critical: 30}
+mem_pct:         {warn: 85, critical: 95}
+disk_pct:        {warn: 85, critical: 95}
+latency_ms:      {warn: 150, critical: 400, baseline_multiple_warn: 3, baseline_multiple_critical: 6}
+packet_loss_pct: {warn: 2, critical: 10}
+heartbeat:       {stale_after_s: 15, offline_after_s: 45}
+persistence_windows: 3
+warmup_samples: 30
+ewma_alpha: 0.1
+raise_z: 4
+clear_z: 2
+clear_ratio: 0.8
+cooldown_s: 60

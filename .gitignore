@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and runtime caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.cache/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Collector-local data must never be committed or deployed.
+data/*
+!data/datasets/
+data/datasets/*
+!data/datasets/.gitkeep
+.vercel/
+*.exe
+*.key
+*.wal
+.playwright-mcp/
+*.tsbuildinfo

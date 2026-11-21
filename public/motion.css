@@ -1,0 +1,745 @@
+/* ==========================================================================
+   Cicada Motion System (Palantir-inspired cinematic, restrained easing)
+   ========================================================================== */
+
+:root {
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --duration-hover: 0.4s;
+  --duration-reveal: 1.0s;
+  --hero-parallax-y: 0px;
+  --hero-h1-y: 0px;
+  --hero-h1-opacity: 1;
+  --hero-shade-darken: 0;
+  --duplex-parallax: 0px;
+}
+
+/* --------------------------------------------------------------------------
+   1. Page-load intro: Header, Hero Title Line Masks, Hero Media & Bottom
+   -------------------------------------------------------------------------- */
+
+@keyframes header-intro-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header.intro-active {
+  animation: header-intro-slide 0.9s var(--ease-out) both;
+}
+
+/* Header transition & hide/show */
+.header {
+  transition: transform 0.4s var(--ease-out),
+              background 0.4s var(--ease-out),
+              color 0.4s var(--ease-out),
+              border-color 0.4s var(--ease-out),
+              box-shadow 0.4s var(--ease-out),
+              opacity 0.4s var(--ease-out);
+}
+
+.header.header-hidden {
+  transform: translateY(-120%) !important;
+}
+
+/* Hero H1 line-by-line reveal & loop */
+.hero-line-mask {
+  display: block;
+  overflow: hidden;
+  line-height: 1.22;
+  padding-bottom: 0.22em;
+  margin-bottom: -0.18em;
+}
+
+.hero-line-inner {
+  display: block;
+  transform: translateY(120%);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.hero-line-inner.revealed,
+.hero-line-inner.line-in {
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 0.95s var(--ease-out), opacity 0.95s var(--ease-out);
+}
+
+.hero-line-inner.line-out {
+  transform: translateY(-120%);
+  opacity: 0;
+  transition: transform 0.85s var(--ease-in-out), opacity 0.85s var(--ease-in-out);
+}
+
+.hero-line-inner.line-reset {
+  transform: translateY(120%);
+  opacity: 0;
+  transition: none !important;
+}
+
+/* Hero parallax properties */
+.hero h1 {
+  transform: translateY(var(--hero-h1-y, 0px));
+  opacity: var(--hero-h1-opacity, 1);
+  will-change: transform, opacity;
+}
+
+/* Hero media initial settle from 1.12 to 1.02 over ~2s, then drift */
+@keyframes hero-settle {
+  0% { transform: scale(1.12); }
+  100% { transform: scale(1.02); }
+}
+
+.hero-media {
+  translate: 0 var(--hero-parallax-y, 0px);
+  animation: hero-settle 2s var(--ease-out) forwards,
+             hero-drift 24s ease-in-out 2s infinite alternate;
+  will-change: translate, transform;
+}
+
+/* Hero shade darkening */
+.hero-shade::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #0e1115;
+  opacity: var(--hero-shade-darken, 0);
+  pointer-events: none;
+  transition: opacity 0.1s linear;
+}
+
+/* Hero bottom fade-in last */
+.hero-bottom {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 1.0s var(--ease-out) 0.6s, transform 1.0s var(--ease-out) 0.6s;
+  will-change: opacity, transform;
+}
+
+.hero-bottom.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   4. Manifesto scroll-scrub text
+   -------------------------------------------------------------------------- */
+
+.manifesto-word {
+  display: inline-block;
+  opacity: 0.15;
+  transition: opacity 0.15s linear;
+  will-change: opacity;
+}
+
+/* --------------------------------------------------------------------------
+   5. General Reveals & Stagger System (15% threshold, translateY(32px)->0)
+   -------------------------------------------------------------------------- */
+
+.reveal,
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity var(--duration-reveal) var(--ease-out),
+              transform var(--duration-reveal) var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible,
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered children container */
+[data-reveal-stagger] > * {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity var(--duration-reveal) var(--ease-out),
+              transform var(--duration-reveal) var(--ease-out);
+  transition-delay: calc(var(--reveal-index, 0) * 80ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal-stagger].is-visible > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   6. Product list (.product-row)
+   -------------------------------------------------------------------------- */
+
+.product-row {
+  position: relative;
+  overflow: visible;
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity var(--duration-reveal) var(--ease-out),
+              transform var(--duration-reveal) var(--ease-out),
+              color var(--duration-hover) var(--ease-out);
+  transition-delay: calc(var(--product-index, 0) * 80ms);
+  will-change: opacity, transform;
+}
+
+.product-row.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hover/focus wipe from left */
+.product-row:before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(-1 * var(--gutter));
+  background: #181c20;
+  opacity: 1 !important;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-hover) var(--ease-out);
+  z-index: 0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .product-row:hover:before,
+  .product-row:focus-visible:before {
+    transform: scaleX(1);
+  }
+}
+
+.product-symbol {
+  transform-origin: center center;
+  transition: opacity var(--duration-hover) var(--ease-out),
+              transform var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out) !important;
+}
+
+@media (hover: hover) {
+  .product-row:hover .product-symbol,
+  .product-row:focus-visible .product-symbol {
+    opacity: 1;
+    transform: translateX(0) rotate(90deg) !important;
+    color: #64b5f6;
+  }
+
+  .product-row:hover .product-name,
+  .product-row:focus-visible .product-name {
+    transform: translateX(12px) !important;
+  }
+
+  .product-row:hover .product-number,
+  .product-row:focus-visible .product-number {
+    transform: translateX(6px);
+    color: #b0b8c0;
+  }
+}
+
+.product-name,
+.product-number,
+.product-description {
+  transition: transform var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out) !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Featured Stories Carousel
+   -------------------------------------------------------------------------- */
+
+.story {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity var(--duration-reveal) var(--ease-out),
+              transform var(--duration-reveal) var(--ease-out);
+  transition-delay: calc(var(--story-index, 0) * 80ms);
+  will-change: opacity, transform;
+}
+
+.story.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.story img {
+  transition: transform 1.2s var(--ease-out) !important;
+  will-change: transform;
+}
+
+@media (hover: hover) {
+  .story:hover img {
+    transform: scale(1.06) !important;
+  }
+
+  .story-bottom span:last-child {
+    display: inline-block;
+    transition: transform var(--duration-hover) var(--ease-out);
+  }
+
+  .story:hover .story-bottom span:last-child {
+    transform: translate(4px, -4px);
+  }
+}
+
+/* Desktop drag-to-scroll cursor */
+.story-track.is-draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.story-track.is-dragging {
+  cursor: grabbing !important;
+  user-select: none;
+  scroll-snap-type: none !important;
+}
+
+.story-track.is-dragging * {
+  pointer-events: none;
+}
+
+/* Carousel scroll progress bar */
+.story-progress {
+  margin: 18px var(--gutter) 0;
+  height: 2px;
+  background: #e1e4e8;
+  position: relative;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.story-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--ink);
+  transform-origin: left center;
+  transform: scaleX(0);
+  border-radius: 2px;
+  will-change: transform;
+}
+
+/* --------------------------------------------------------------------------
+   8. Duplex Section (.duplex-image)
+   -------------------------------------------------------------------------- */
+
+.duplex-image {
+  clip-path: inset(8% 8% 8% 8% round 8px);
+  transition: clip-path 1.2s var(--ease-out);
+  will-change: clip-path;
+}
+
+.duplex-image.is-visible {
+  clip-path: inset(0% 0% 0% 0% round 8px);
+}
+
+.duplex-image img {
+  transform: scale(1.15) translateY(var(--duplex-parallax, 0px));
+  transition: transform 1.2s var(--ease-out);
+  will-change: transform;
+}
+
+.duplex-image.is-visible img {
+  transform: scale(1) translateY(var(--duplex-parallax, 0px));
+}
+
+/* --------------------------------------------------------------------------
+   9. Solutions Cards & CTA Tiles
+   -------------------------------------------------------------------------- */
+
+.solution-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 0.4s var(--ease-out),
+              border-color 0.4s var(--ease-out),
+              box-shadow 0.4s var(--ease-out);
+  will-change: transform;
+}
+
+.solution-card.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.solution-card:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #181c20;
+  transform: scaleY(0);
+  transform-origin: bottom center;
+  transition: transform var(--duration-hover) var(--ease-out);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.solution-card > * {
+  position: relative;
+  z-index: 1;
+  transition: color var(--duration-hover) var(--ease-out);
+}
+
+.solution-card > span {
+  display: inline-block;
+  transition: transform var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .solution-card:hover:before,
+  .solution-card:focus-visible:before {
+    transform: scaleY(1);
+  }
+
+  .solution-card:hover,
+  .solution-card:focus-visible {
+    border-color: #181c20;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.07);
+  }
+
+  .solution-card:hover h3,
+  .solution-card:focus-visible h3 {
+    color: #ffffff;
+  }
+
+  .solution-card:hover p,
+  .solution-card:focus-visible p {
+    color: #e1e4e8;
+  }
+
+  .solution-card:hover > span,
+  .solution-card:focus-visible > span {
+    transform: translate(6px, -6px);
+    color: #90caf9;
+  }
+}
+
+/* CTA Tiles */
+.cta-tile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform var(--duration-hover) var(--ease-out),
+              border-color var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out);
+}
+
+.cta-tile:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #181c20;
+  transform: scaleY(0);
+  transform-origin: bottom center;
+  transition: transform var(--duration-hover) var(--ease-out);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cta-tile.dark:before {
+  background: #2878c9;
+}
+
+.cta-tile > * {
+  position: relative;
+  z-index: 1;
+  transition: color var(--duration-hover) var(--ease-out);
+}
+
+.cta-tile > span[aria-hidden="true"] {
+  display: inline-block;
+  transition: transform var(--duration-hover) var(--ease-out),
+              color var(--duration-hover) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .cta-tile:hover:before,
+  .cta-tile:focus-visible:before {
+    transform: scaleY(1);
+  }
+
+  .cta-tile:hover,
+  .cta-tile:focus-visible {
+    transform: translateY(-2px);
+    color: #ffffff;
+  }
+
+  .cta-tile:hover .cta-label,
+  .cta-tile:focus-visible .cta-label {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .cta-tile:hover > span[aria-hidden="true"],
+  .cta-tile:focus-visible > span[aria-hidden="true"] {
+    transform: translate(6px, -6px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   10. Dialog Animations
+   -------------------------------------------------------------------------- */
+
+/* Navigation overlay links staggered slide-up & fade */
+.navigation-dialog[open] .main-navigation > * {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: nav-link-enter 0.55s var(--ease-out) forwards;
+  animation-delay: calc(var(--nav-link-index, 0) * 50ms);
+}
+
+@keyframes nav-link-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Content dialog staggered reveal */
+.dialog-reveal-item {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+  transition-delay: calc(var(--dialog-reveal-index, 0) * 60ms);
+  will-change: opacity, transform;
+}
+
+.dialog-reveal-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   11. Buttons & Links Hover Sweeps
+   -------------------------------------------------------------------------- */
+
+.start-button,
+.small-outline,
+.solid-button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: color var(--duration-hover) var(--ease-out),
+              border-color var(--duration-hover) var(--ease-out),
+              background var(--duration-hover) var(--ease-out) !important;
+}
+
+.start-button::before,
+.small-outline::before,
+.solid-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-hover) var(--ease-out);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.start-button::before {
+  background: #181c20;
+}
+
+.header.scrolled .start-button::before {
+  background: #2878c9;
+}
+
+.small-outline::before {
+  background: var(--ink);
+}
+
+.solid-button::before {
+  background: #2878c9;
+}
+
+@media (hover: hover) {
+  .start-button:hover::before,
+  .start-button:focus-visible::before,
+  .small-outline:hover::before,
+  .small-outline:focus-visible::before,
+  .solid-button:hover::before,
+  .solid-button:focus-visible::before {
+    transform: scaleX(1);
+  }
+
+  .start-button:hover,
+  .start-button:focus-visible {
+    background: #ffffff !important;
+    color: #ffffff !important;
+    border-color: #181c20 !important;
+  }
+
+  .header.scrolled .start-button:hover,
+  .header.scrolled .start-button:focus-visible {
+    background: #181c20 !important;
+    border-color: #2878c9 !important;
+  }
+
+  .small-outline:hover,
+  .small-outline:focus-visible {
+    background: transparent !important;
+    color: #ffffff !important;
+    border-color: var(--ink) !important;
+  }
+
+  .solid-button:hover,
+  .solid-button:focus-visible {
+    background: #181c20 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Underline sweep on .text-link */
+.text-link {
+  position: relative;
+  border-bottom: 1px solid #d1d5da;
+}
+
+.text-link::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--duration-hover) var(--ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .text-link:hover::after,
+  .text-link:focus-visible::after {
+    transform: scaleX(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Mobile & Reduced Motion Overrides
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* Disable parallax on mobile */
+  .hero-media {
+    translate: none !important;
+  }
+  .hero h1 {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .hero-shade::after {
+    display: none !important;
+  }
+  .duplex-image img {
+    transform: none !important;
+  }
+}
+
+/* Reduced motion & Paused toggle (body.paused) */
+.paused *,
+.paused *::before,
+.paused *::after,
+@media (prefers-reduced-motion: reduce) {
+  animation: none !important;
+  transition: none !important;
+}
+
+.paused .header,
+@media (prefers-reduced-motion: reduce) {
+  .header {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+.paused .header.header-hidden,
+@media (prefers-reduced-motion: reduce) {
+  .header.header-hidden {
+    transform: none !important;
+  }
+}
+
+.paused .hero-line-inner,
+@media (prefers-reduced-motion: reduce) {
+  .hero-line-inner,
+  .hero-line-inner.revealed,
+  .hero-line-inner.line-in,
+  .hero-line-inner.line-out,
+  .hero-line-inner.line-reset {
+    transform: none !important;
+    opacity: 1 !important;
+    transition: none !important;
+  }
+}
+
+.paused .hero-media,
+@media (prefers-reduced-motion: reduce) {
+  .hero-media {
+    transform: none !important;
+    translate: none !important;
+  }
+}
+
+.paused .hero h1,
+@media (prefers-reduced-motion: reduce) {
+  .hero h1 {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+.paused .hero-bottom,
+@media (prefers-reduced-motion: reduce) {
+  .hero-bottom {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+.paused .manifesto-word,
+@media (prefers-reduced-motion: reduce) {
+  .manifesto-word {
+    opacity: 1 !important;
+  }
+}
+
+.paused .reveal,
+.paused [data-reveal],
+.paused [data-reveal-stagger] > *,
+.paused .product-row,
+.paused .story,
+.paused .solution-card,
+.paused .solution-track,
+.paused .dialog-reveal-item,
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  [data-reveal],
+  [data-reveal-stagger] > *,
+  .product-row,
+  .story,
+  .solution-card,
+  .solution-track,
+  .dialog-reveal-item {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}
+
+.paused .duplex-image,
+@media (prefers-reduced-motion: reduce) {
+  .duplex-image {
+    clip-path: none !important;
+  }
+  .duplex-image img {
+    transform: none !important;
+  }
+}

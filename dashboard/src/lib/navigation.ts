@@ -1,0 +1,4 @@
+import {useEffect,useState} from 'react';
+export const views:Record<string,string>={fleet:'Fleet Overview',incidents:'Incidents',proof:'Egress Proof',audit:'Audit Log',demo:'Demo Lab',validation:'Validation',limitations:'Limitations'};
+function current(){return views[location.hash.slice(1)||location.pathname.split('/').filter(Boolean).at(-1)||'fleet']||views.fleet}
+export function useConsoleTab():[string,(name:string)=>void]{const [tab,update]=useState(current);useEffect(()=>{const changed=()=>update(current());addEventListener('hashchange',changed);addEventListener('popstate',changed);return()=>{removeEventListener('hashchange',changed);removeEventListener('popstate',changed)}},[]);return [tab,(name)=>{const slug=Object.keys(views).find(k=>views[k]===name);if(slug){location.hash=slug;update(name)}}]}

@@ -1,0 +1,3 @@
+import {useEffect,useState} from 'react';
+import type {Region} from '../lib/types';
+export default function HostedStatus({region}:{region:Region}){const [ready,setReady]=useState<boolean|null>(null);useEffect(()=>{if(import.meta.env.VITE_HOSTED!=='true')return;const c=new AbortController();fetch('/api/deployment-status',{signal:c.signal}).then(r=>r.json()).then(d=>setReady(Boolean(d.regions?.[region]))).catch(()=>{if(!c.signal.aborted)setReady(false)});return()=>c.abort()},[region]);if(import.meta.env.VITE_HOSTED!=='true'||ready!==false)return null;return <p role="status" className="notice">This workspace service is not connected yet. Contact the site owner to enable sign-in and live device monitoring.</p>}

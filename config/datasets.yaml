@@ -1,0 +1,29 @@
+# Paths are relative to data/datasets. No labels are loaded by the collector.
+metrics:
+  - pattern: nab/realAWSCloudwatch/ec2_cpu_utilization_*.csv
+    metric: cpu_pct
+    scale: 1
+    min: 0
+    max: 100
+  - pattern: nab/realAWSCloudwatch/rds_cpu_utilization_*.csv
+    metric: cpu_pct
+    scale: 1
+    min: 0
+    max: 100
+  # CloudWatch NetworkIn is bytes per period; assume a 300-second period.
+  # Mbps = bytes * 8 / 300 / 1,000,000. Adjust for the trace's actual period.
+  - pattern: nab/realAWSCloudwatch/ec2_network_in_*.csv
+    metric: bandwidth_mbps
+    scale: 0.000000026666666666666667
+    min: 0
+    max: 1000000
+  # Only known CPU traces have a compatible metric. Taxi/temperature traces
+  # must not be mislabeled as machine CPU or network telemetry.
+  - pattern: nab/realKnownCause/cpu_utilization_asg_misconfiguration.csv
+    metric: cpu_pct
+    scale: 1
+    min: 0
+    max: 100
+logs:
+  - loghub/OpenSSH_2k.log
+  - loghub/Linux_2k.log

@@ -1,0 +1,33 @@
+playbooks:
+  - pattern: network_path_issue
+    recommended_action: Inspect the network path and dependency reachability.
+    why: Latency and failed TCP probes rose together.
+    steps: [Compare peer nodes, Check local gateway, Inspect dependency status]
+  - pattern: local_workload
+    recommended_action: Inspect local process CPU consumption.
+    why: CPU deviated without accompanying network symptoms.
+    steps: [Inspect process CPU, Check scheduled work, Compare recent deployments]
+  - pattern: possible_attack_exfiltration
+    recommended_action: Investigate authentication failures and outbound traffic locally.
+    why: CPU and bandwidth changes coincide with a failed-login burst.
+    steps: [Review local authentication logs, Inspect connections, Apply approved containment]
+  - pattern: memory_leak
+    recommended_action: Inspect memory growth in long-lived processes.
+    why: Memory usage has a sustained upward trend.
+    steps: [Compare process working sets, Capture local diagnostic profile, Review recent changes]
+  - pattern: capacity_risk
+    recommended_action: Review disk growth and retention settings.
+    why: Disk use is climbing toward capacity.
+    steps: [Find growing directories locally, Check retention, Plan additional capacity]
+  - pattern: shared_dependency
+    recommended_action: Investigate dependencies shared by affected nodes.
+    why: Multiple tenant nodes deviated in the same time window.
+    steps: [Compare node timelines, Check shared services, Check regional connectivity]
+  - pattern: collector_down
+    recommended_action: Restore collector connectivity or restart the local collector.
+    why: Heartbeat age exceeded the offline deadline.
+    steps: [Check host power, Check collector process, Check HTTPS connectivity]
+  - pattern: buffer_full
+    recommended_action: Restore delivery and increase local buffer capacity.
+    why: The local durable delivery buffer is full.
+    steps: [Check free disk, Restore ingest connectivity, Verify acknowledgements]
