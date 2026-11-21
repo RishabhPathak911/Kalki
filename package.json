@@ -8,6 +8,6 @@
     "test:hosting": "node --test tools/hosting.test.mjs",
     "dev": "node tools/dev-server.mjs",
     "start": "node tools/dev-server.mjs",
-    "check": "node --check public/app.js && node --check public/motion.js && node --check public/cinematic.js && node --check tools/dev-server.mjs"
+    "check": "node --check public/app.js && node --check public/motion.js && node --check public/cinematic.js && node --check public/hero-scenes.js && node --check tools/dev-server.mjs"
   }
 }

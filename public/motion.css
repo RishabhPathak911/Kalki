@@ -12,6 +12,7 @@
   --hero-h1-opacity: 1;
   --hero-shade-darken: 0;
   --duplex-parallax: 0px;
+  --tab-duration: 8s;
 }
 
 /* --------------------------------------------------------------------------
@@ -685,6 +686,21 @@
   .hero-media {
     transform: none !important;
     translate: none !important;
+  }
+}
+
+.paused .hero-scene,
+@media (prefers-reduced-motion: reduce) {
+  .hero-scene {
+    transition: none !important;
+  }
+  .hero-scene[data-scene-index="0"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  .hero-scene:not([data-scene-index="0"]) {
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 }
 

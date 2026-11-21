@@ -12,7 +12,7 @@ const products = [
       "NAB and Loghub replay with explicit source labels",
       "Go collector for Windows, Linux and macOS"
     ],
-    "image": "infrastructure",
+    "image": "/assets/features/prana.png",
     "tags": "collection cpu memory network live replay"
   },
   {
@@ -26,7 +26,7 @@ const products = [
       "Tenant-keyed HMAC pseudonyms",
       "Fail-closed outbound allowlist"
     ],
-    "image": "engineers",
+    "image": "/assets/features/kavach.png",
     "tags": "privacy secrets redaction policy pseudonyms"
   },
   {
@@ -40,7 +40,7 @@ const products = [
       "Rolling 60-second failed-login detection",
       "Separate live and replayed summaries"
     ],
-    "image": "cloud",
+    "image": "/assets/features/nadi.png",
     "tags": "metrics rollups statistics security brute force"
   },
   {
@@ -54,7 +54,7 @@ const products = [
       "Idempotent regional ingest with bounded memory rings",
       "Local egress proof and exact-byte hash matching"
     ],
-    "image": "infrastructure",
+    "image": "/assets/features/setu.png",
     "tags": "delivery wal outage retry acknowledgements proof"
   },
   {
@@ -68,7 +68,7 @@ const products = [
       "Planned: Excellent, Good, Fair and Poor health states",
       "Planned: live console and safe remediation simulator"
     ],
-    "image": "platform",
+    "image": "/assets/features/medha.png",
     "tags": "planned aiops health incidents dashboard explanations"
   }
 ];
@@ -136,34 +136,44 @@ const solutions = [
 ];
 const stories = [
   {
-    "product": "prana",
-    "label": "PRANA / LOCAL COLLECTION",
-    "title": "Collect real measurements where your systems run.",
-    "image": "infrastructure"
+    product: "prana",
+    name: "Prana",
+    eyebrow: "LOCAL MULTI-SOURCE COLLECTION",
+    headline: "Sense Everything. Send Nothing Raw.",
+    image: "/assets/features/prana.png",
+    alt: "Prana edge collection layer capturing CPU, memory, network and log signals inside the customer environment"
   },
   {
-    "product": "kavach",
-    "label": "KAVACH / PRIVACY GATE",
-    "title": "Keep raw logs and secrets inside the collector.",
-    "image": "engineers"
+    product: "kavach",
+    name: "Kavach",
+    eyebrow: "ZERO-LEAK PRIVACY FILTER & POLICY GATE",
+    headline: "Scrub Before Analysis. Validate Before Egress.",
+    image: "/assets/features/kavach.png",
+    alt: "Kavach two-stage privacy filter and fail-closed policy gate"
   },
   {
-    "product": "nadi",
-    "label": "NADI / LOCAL ANALYSIS",
-    "title": "Turn measurements into compact, useful summaries.",
-    "image": "cloud"
+    product: "nadi",
+    name: "Nadi",
+    eyebrow: "EDGE AGGREGATION & LOCAL DETECTION",
+    headline: "Compress Noise. Catch Attacks Locally.",
+    image: "/assets/features/nadi.png",
+    alt: "Nadi five-second statistical rollups and local brute-force detection"
   },
   {
-    "product": "setu",
-    "label": "SETU / RELIABLE DELIVERY",
-    "title": "Buffer approved batches and prove what was received.",
-    "image": "infrastructure"
+    product: "setu",
+    name: "Setu",
+    eyebrow: "RESILIENT DELIVERY & MULTI-TENANT INGEST",
+    headline: "Prove What Leaves. Lose Nothing In Transit.",
+    image: "/assets/features/setu.png",
+    alt: "Setu approved-only egress, durable buffering and tenant-isolated ingest"
   },
   {
-    "product": "medha",
-    "label": "MEDHA / AIOPS CONSOLE · PLANNED",
-    "title": "Explain fleet health and guide the next safe action.",
-    "image": "platform"
+    product: "medha",
+    name: "Medha",
+    eyebrow: "EXPLAINABLE AIOPS & FLEET CONSOLE",
+    headline: "Four-State Health. Explainable Incidents.",
+    image: "/assets/features/medha.png",
+    alt: "Medha four-state health engine, incident correlation and fleet console"
   }
 ];
 const deployments = {
@@ -229,8 +239,20 @@ $('#product-list').innerHTML = products.slice(0,5).map((p,i)=>`
 `).join('');
 
 $('#footer-products').innerHTML = products.slice(0,5).map(p=>`<button data-product="${p.id}">${p.name}</button>`).join('')+'<button data-open="catalog">All capabilities</button>';
-$('#feature-tabs').innerHTML = stories.map((s,i)=>`<button role="tab" id="story-tab-${i}" aria-selected="${i===0}" aria-controls="story-${i}" tabindex="${i===0?0:-1}" data-story="${i}">${productById(s.product).name}</button>`).join('');
-$('#story-track').innerHTML = stories.map((s,i)=>`<button class="story" id="story-${i}" data-product="${s.product}" aria-label="Explore ${productById(s.product).name}"><img src="/assets/${s.image}.webp" alt="" loading="lazy"><div class="story-copy"><span class="story-label">${s.label}</span><h3>${s.title}</h3></div><div class="story-bottom"><span>EXPLORE THE CAPABILITY</span><span aria-hidden="true">↗</span></div></button>`).join('');
+$('#feature-tabs').innerHTML = stories.map((s,i)=>`<button role="tab" id="story-tab-${i}" aria-selected="${i===0}" aria-controls="story-${i}" tabindex="${i===0?0:-1}" data-story="${i}"><span class="tab-label">${s.name}</span></button>`).join('');
+$('#story-track').innerHTML = stories.map((s,i)=>`
+  <div class="story" id="story-${i}" role="tabpanel" aria-labelledby="story-tab-${i}" tabindex="${i===0?0:-1}" data-story-index="${i}">
+    <img src="${s.image}" alt="${escapeHTML(s.alt)}" loading="${i===0?'eager':'lazy'}">
+    <div class="story-copy">
+      <span class="story-eyebrow">${escapeHTML(s.eyebrow)}</span>
+      <h3 class="story-headline">
+        <a href="#feature-${s.product}" class="story-headline-link" data-product="${s.product}">
+          ${escapeHTML(s.headline)}<span class="story-arrow" aria-hidden="true"> ↗</span>
+        </a>
+      </h3>
+    </div>
+  </div>
+`).join('');
 const renderSolutionCards = (isClone = false) => solutions.map((s,i)=>`
   <button class="solution-card" data-solution="${i}" ${isClone ? 'tabindex="-1" aria-hidden="true"' : ''}>
     <h3>${s.name}</h3>
@@ -285,7 +307,7 @@ function showProduct(id){
     <span class="eyebrow">KALKI / ${p.label.toUpperCase()}</span>
     <h2 id="dialog-title">${p.name}</h2>
     <p class="dialog-lead">${p.description}</p>
-    <img class="detail-hero" src="/assets/${p.image}.webp" alt="">
+    <img class="detail-hero" src="${p.image.startsWith('/') ? p.image : '/assets/' + p.image + '.webp'}" alt="${p.name}">
     <ul class="capability-list">${p.features.map(f=>`<li>${f}</li>`).join('')}</ul>
     <p class="dialog-note">One of five Kalki modules. Current capabilities and planned work are listed explicitly.</p>
     <div class="dialog-actions">
@@ -428,65 +450,215 @@ document.addEventListener('click',event=>{
 $('#open-menu').addEventListener('click',()=>openDialog($('#navigation-dialog')));
 $('#dismiss-announcement').addEventListener('click',()=>{$('#announcement').hidden=true;});
 
-const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
-function setPaused(paused){
-  document.body.classList.toggle('paused',paused);
-  $('#motion-toggle').setAttribute('aria-pressed',String(paused));
-  $('#motion-toggle').setAttribute('aria-label',paused?'Resume background motion':'Pause background motion');
-  $('#motion-toggle').textContent=paused?'▷':'Ⅱ';
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const featuredSection = $('#featured');
+const featureTabs = $('#feature-tabs');
+const storyTrack = $('#story-track');
+let isProgrammaticScroll = false;
+let programmaticScrollTimer = null;
+let isHovered = false;
+let isFocused = false;
+let isTrackDragging = false;
+let isDocHidden = document.hidden;
+let isOffscreen = false;
+
+function updateAutoplayPauseState() {
+  const motionPaused = document.body.classList.contains('paused') || reducedMotion.matches;
+  const isPaused =
+    motionPaused ||
+    isHovered ||
+    isFocused ||
+    isTrackDragging ||
+    isDocHidden ||
+    isOffscreen;
+
+  if (featuredSection) {
+    featuredSection.classList.toggle('is-paused', isPaused);
+  }
+  if (featureTabs) {
+    featureTabs.classList.toggle('is-paused', isPaused);
+  }
+
+  if (motionPaused) {
+    document.querySelectorAll('#feature-tabs [data-story]').forEach(tab => {
+      tab.classList.remove('is-animating');
+    });
+  } else if (!isPaused) {
+    const activeTab = $(`[data-story="${activeStory}"]`);
+    if (activeTab && !activeTab.classList.contains('is-animating')) {
+      activeTab.classList.add('is-animating');
+    }
+  }
+}
+
+function setPaused(paused) {
+  document.body.classList.toggle('paused', paused);
+  $('#motion-toggle').setAttribute('aria-pressed', String(paused));
+  $('#motion-toggle').setAttribute('aria-label', paused ? 'Resume background motion' : 'Pause background motion');
+  $('#motion-toggle').textContent = paused ? '▷' : 'Ⅱ';
+  updateAutoplayPauseState();
 }
 setPaused(reducedMotion.matches);
-$('#motion-toggle').addEventListener('click',()=>setPaused(!document.body.classList.contains('paused')));
-reducedMotion.addEventListener('change',event=>setPaused(event.matches));
+$('#motion-toggle').addEventListener('click', () => setPaused(!document.body.classList.contains('paused')));
+reducedMotion.addEventListener('change', event => setPaused(event.matches));
 
-window.addEventListener('scroll',()=>{
-  $('#header').classList.toggle('scrolled',window.scrollY>80);
-},{passive:true});
+window.addEventListener('scroll', () => {
+  $('#header').classList.toggle('scrolled', window.scrollY > 80);
+}, { passive: true });
 
 // Story carousel
-function markStory(index){
-  activeStory=index;
-  $('#story-position').textContent=`${String(index+1).padStart(2,'0')} / 06`;
-  document.querySelectorAll('[data-story]').forEach((b,i)=>{b.setAttribute('aria-selected',String(i===index));b.tabIndex=i===index?0:-1;});
-  $('#story-prev').disabled=index===0;
-  $('#story-next').disabled=index===stories.length-1;
+
+function restartTabAnimation(index) {
+  const tabs = document.querySelectorAll('#feature-tabs [data-story]');
+  tabs.forEach((tab, i) => {
+    tab.classList.remove('is-animating');
+    if (i === index) {
+      void tab.offsetWidth;
+      if (!document.body.classList.contains('paused') && !reducedMotion.matches) {
+        tab.classList.add('is-animating');
+      }
+    }
+  });
 }
 
-function selectStory(index){
-  const i=Math.max(0,Math.min(stories.length-1,index));
-  const track=$('#story-track');
-  const card=track.children[i];
-  track.scrollTo({left:card.offsetLeft-track.children[0].offsetLeft,behavior:reducedMotion.matches?'instant':'smooth'});
-  markStory(i);
-}
+function markStory(index, restartFill = true) {
+  activeStory = index;
+  const pos = $('#story-position');
+  if (pos) pos.textContent = `${String(index + 1).padStart(2, '0')} / ${String(stories.length).padStart(2, '0')}`;
+  document.querySelectorAll('[data-story]').forEach((b, i) => {
+    const isSelected = i === index;
+    b.setAttribute('aria-selected', String(isSelected));
+    b.tabIndex = isSelected ? 0 : -1;
+  });
+  document.querySelectorAll('#story-track .story').forEach((panel, i) => {
+    panel.tabIndex = i === index ? 0 : -1;
+  });
 
-$('#feature-tabs').addEventListener('click',event=>{
-  const b=event.target.closest('[data-story]');
-  if(b)selectStory(Number(b.dataset.story));
-});
-
-$('#feature-tabs').addEventListener('keydown',event=>{
-  if(['ArrowRight','ArrowLeft','Home','End'].includes(event.key)){
-    event.preventDefault();
-    const index=event.key==='Home'?0:event.key==='End'?stories.length-1:Math.max(0,Math.min(stories.length-1,activeStory+(event.key==='ArrowRight'?1:-1)));
-    selectStory(index);
-    $(`[data-story="${index}"]`).focus();
+  if (restartFill) {
+    restartTabAnimation(index);
   }
+}
+
+function selectStory(index) {
+  const i = ((index % stories.length) + stories.length) % stories.length;
+  const track = $('#story-track');
+  if (!track || !track.children || !track.children[i]) return;
+  const card = track.children[i];
+
+  isProgrammaticScroll = true;
+  clearTimeout(programmaticScrollTimer);
+  programmaticScrollTimer = setTimeout(() => {
+    isProgrammaticScroll = false;
+  }, 450);
+
+  const offset = card.offsetLeft - track.children[0].offsetLeft;
+  track.scrollTo({ left: offset, behavior: reducedMotion.matches ? 'instant' : 'smooth' });
+  markStory(i, true);
+}
+
+if (featureTabs) {
+  featureTabs.addEventListener('click', event => {
+    const b = event.target.closest('[data-story]');
+    if (b) selectStory(Number(b.dataset.story));
+  });
+
+  featureTabs.addEventListener('keydown', event => {
+    if (['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const index = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+        ? stories.length - 1
+        : ((activeStory + (event.key === 'ArrowRight' ? 1 : -1)) % stories.length + stories.length) % stories.length;
+      selectStory(index);
+      const targetTab = $(`[data-story="${index}"]`);
+      if (targetTab) targetTab.focus();
+    }
+  });
+
+  featureTabs.addEventListener('focusin', () => {
+    isFocused = true;
+    updateAutoplayPauseState();
+  });
+  featureTabs.addEventListener('focusout', () => {
+    isFocused = false;
+    updateAutoplayPauseState();
+  });
+
+  featureTabs.addEventListener('animationend', event => {
+    if (event.animationName === 'tab-fill') {
+      if (document.body.classList.contains('paused') || reducedMotion.matches || isOffscreen) {
+        return;
+      }
+      selectStory((activeStory + 1) % stories.length);
+    }
+  });
+}
+
+if (featuredSection) {
+  featuredSection.addEventListener('pointerenter', () => {
+    isHovered = true;
+    updateAutoplayPauseState();
+  });
+  featuredSection.addEventListener('pointerleave', () => {
+    isHovered = false;
+    updateAutoplayPauseState();
+  });
+}
+
+if (storyTrack) {
+  storyTrack.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    isTrackDragging = true;
+    updateAutoplayPauseState();
+  });
+  const stopTrackDrag = () => {
+    if (isTrackDragging) {
+      isTrackDragging = false;
+      updateAutoplayPauseState();
+    }
+  };
+  window.addEventListener('pointerup', stopTrackDrag);
+  window.addEventListener('pointercancel', stopTrackDrag);
+}
+
+document.addEventListener('visibilitychange', () => {
+  isDocHidden = document.hidden;
+  updateAutoplayPauseState();
 });
 
-$('#story-prev').addEventListener('click',()=>selectStory(activeStory-1));
-$('#story-next').addEventListener('click',()=>selectStory(activeStory+1));
+if ('IntersectionObserver' in window && featuredSection) {
+  const featuredObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      isOffscreen = !entry.isIntersecting;
+      updateAutoplayPauseState();
+    });
+  }, { threshold: 0.1 });
+  featuredObserver.observe(featuredSection);
+}
+
+$('#story-prev').addEventListener('click', () => selectStory(activeStory - 1));
+$('#story-next').addEventListener('click', () => selectStory(activeStory + 1));
 
 let scrollTimer;
-$('#story-track').addEventListener('scroll',()=>{
-  clearTimeout(scrollTimer);
-  scrollTimer=setTimeout(()=>{
-    const t=$('#story-track');
-    const width=t.children[1].offsetLeft-t.children[0].offsetLeft;
-    markStory(Math.min(stories.length-1,Math.round(t.scrollLeft/width)));
-  },180);
-},{passive:true});
-markStory(0);
+if (storyTrack) {
+  storyTrack.addEventListener('scroll', () => {
+    if (isProgrammaticScroll) return;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      if (!storyTrack.children || storyTrack.children.length < 2) return;
+      const width = storyTrack.children[1].offsetLeft - storyTrack.children[0].offsetLeft;
+      if (width <= 0) return;
+      const targetIndex = Math.min(stories.length - 1, Math.max(0, Math.round(storyTrack.scrollLeft / width)));
+      if (targetIndex !== activeStory) {
+        selectStory(targetIndex);
+      }
+    }, 100);
+  }, { passive: true });
+}
+
+markStory(0, true);
+updateAutoplayPauseState();
 
 // Keyboard nav in deployment tabs
 document.addEventListener('keydown',event=>{

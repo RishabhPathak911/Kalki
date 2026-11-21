@@ -5,6 +5,7 @@
  */
 
 import { initCinematic } from './cinematic.js';
+import { initHeroScenes, setHeroScenesPaused } from './hero-scenes.js';
 
 // Global motion state
 let isMobile = false;
@@ -84,51 +85,8 @@ function stopSloganLoop() {
 }
 
 function startSloganLoop() {
+  // Slogan remains fixed during scene changes per Phase 3 specifications
   stopSloganLoop();
-  if (checkPaused() || !heroTitleEl || !isHeroVisible) return;
-
-  const inners = heroTitleEl.querySelectorAll('.hero-line-inner');
-  if (inners.length === 0) return;
-
-  // Dwell for 3.5 seconds while resting in view
-  sloganTimer = setTimeout(() => {
-    if (checkPaused() || !isHeroVisible) return;
-
-    // 1. Exit: Slide up out of view through top mask with 90ms stagger
-    inners.forEach((line, idx) => {
-      line.classList.remove('revealed', 'line-in', 'line-reset');
-      setTimeout(() => {
-        if (checkPaused() || !isHeroVisible) return;
-        line.classList.add('line-out');
-      }, idx * 90);
-    });
-
-    // 2. Reset position below after exit transition completes
-    sloganTimer = setTimeout(() => {
-      if (checkPaused() || !isHeroVisible) return;
-
-      inners.forEach(line => {
-        line.classList.remove('line-out');
-        line.classList.add('line-reset');
-      });
-
-      // 3. Pause briefly at bottom (400ms) then slide back up into view
-      sloganTimer = setTimeout(() => {
-        if (checkPaused() || !isHeroVisible) return;
-
-        inners.forEach((line, idx) => {
-          line.classList.remove('line-reset');
-          setTimeout(() => {
-            if (checkPaused() || !isHeroVisible) return;
-            line.classList.add('line-in');
-          }, idx * 90);
-        });
-
-        // 4. Continue permanent loop
-        startSloganLoop();
-      }, 400);
-    }, 1050);
-  }, 3500);
 }
 
 /**
@@ -169,18 +127,15 @@ function setupIntro() {
         inners.forEach((line, idx) => {
           setTimeout(() => {
             line.classList.add('revealed', 'line-in');
-          }, 120 + idx * 90);
+          }, 120 + idx * 120);
         });
 
         // Hero bottom fades in last
         if (heroBottomEl) {
           setTimeout(() => {
             heroBottomEl.classList.add('revealed');
-          }, 120 + inners.length * 90 + 300);
+          }, 120 + inners.length * 120 + 300);
         }
-
-        // Start permanent slogan appearance loop
-        startSloganLoop();
       });
     }
   }
@@ -550,6 +505,7 @@ function handleMotionStateChange() {
   if (cinematicEngine) {
     cinematicEngine.setPausedState(paused);
   }
+  setHeroScenesPaused(paused);
   if (paused) {
     stopSloganLoop();
     if (heroTitleEl) {
@@ -601,6 +557,9 @@ export function initMotion() {
 
   // Initialize WebGL cinematic telemetry mesh
   cinematicEngine = initCinematic();
+
+  // Initialize Hero Scenes crossfade controller
+  initHeroScenes();
 
   // Navigation dialog links stagger setup
   const navDialog = document.getElementById('navigation-dialog');
