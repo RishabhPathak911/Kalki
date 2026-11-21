@@ -54,7 +54,8 @@ func run(args []string, output io.Writer) error {
 	tier2 := fs.String("tier2-url", env("TIER2_URL", ""), "HTTPS receiver origin; enables durable WAL delivery")
 	walPath := fs.String("wal-path", env("WAL_PATH", "data/collector.wal"), "append-only collector WAL; one file per collector")
 	walCapacity := fs.String("wal-cap-bytes", env("WAL_CAP_BYTES", "67108864"), "WAL byte cap including retained history")
-	caCert := fs.String("ca-cert", env("CA_CERT", "data/certs/ca.pem"), "trusted local receiver CA")
+	caCert := fs.String("ca-cert", env("CA_CERT", ""), "optional private receiver CA; empty uses system trust")
+	windowFlag := fs.Duration("window", 5*time.Second, "rollup window (1s to 60s)")
 	proofAddr := fs.String("proof-addr", env("PROOF_ADDR", "127.0.0.1:9090"), "loopback-only proof inspection address")
 	drainTimeout := fs.String("drain-timeout", env("DRAIN_TIMEOUT", "5s"), "shutdown delivery drain budget")
 	interval := fs.String("interval", env("INTERVAL", "1s"), "host sampling duration")
@@ -76,6 +77,9 @@ func run(args []string, output io.Writer) error {
 	}
 	if fs.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
+	}
+	if *windowFlag < time.Second || *windowFlag > 60*time.Second {
+		return fmt.Errorf("window must be between 1s and 60s")
 	}
 	if *token == "" {
 		*token = env("TOKEN", "")
@@ -181,6 +185,7 @@ func run(args []string, output io.Writer) error {
 	var count uint64
 	options := pipeline.Options{Tenant: *tenant, NodeID: *node, Region: *region, Identity: identity, Gate: gate, Report: reporter}
 	options.CollectorID = *collectorID
+	options.Window = *windowFlag
 	options.RawSink = func(s collect.RawSample) error {
 		count++
 		if *printMode {

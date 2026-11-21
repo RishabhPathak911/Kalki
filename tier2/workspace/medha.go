@@ -116,6 +116,10 @@ func (g *Gateway) remediate(w http.ResponseWriter, r *http.Request, id identity)
 		// The only permitted action is an in-memory simulated diagnostic plan.
 		// No OS-command interface or real execution path exists.
 		item := Remediation{ID: "remediation-" + random[:16], Incident: req.Incident, Collector: found.Collector, Status: "PROPOSED", Reversible: true, TargetValid: target, Authorized: true, Action: "Simulate diagnostic plan: " + found.Action, Result: "Awaiting explicit human approval", At: collect.Timestamp(time.Now())}
+		if a.saveRemediation(id.Tenant, item) != nil {
+			failure(w, 503)
+			return
+		}
 		a.remediations[id.Tenant] = append(a.remediations[id.Tenant], item)
 		a.audit(id.Tenant, "remediation_propose", 200)
 		a.engine.Publish(id.Tenant, "remediation", item)
@@ -178,6 +182,10 @@ func (g *Gateway) remediate(w http.ResponseWriter, r *http.Request, id identity)
 		return
 	}
 	item.At = collect.Timestamp(time.Now())
+	if a.saveRemediation(id.Tenant, item) != nil {
+		failure(w, 503)
+		return
+	}
 	list[index] = item
 	a.remediations[id.Tenant] = list
 	a.audit(id.Tenant, "remediation_"+parts[1], 200)
@@ -192,6 +200,7 @@ func (g *Gateway) stream(w http.ResponseWriter, r *http.Request) {
 	a := g.authority
 	key := bearer(r)
 	a.mu.Lock()
+	a.persistErr = nil
 	s, ok := a.sessions[key]
 	engine := a.engine
 	if !ok || !time.Now().Before(s.Expires) {
@@ -201,6 +210,11 @@ func (g *Gateway) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.audit(s.Tenant, "dashboard_stream", 200)
+	if a.persistErr != nil {
+		a.mu.Unlock()
+		failure(w, 503)
+		return
+	}
 	a.mu.Unlock()
 	if engine == nil {
 		failure(w, 503)
@@ -242,11 +256,15 @@ func (g *Gateway) stream(w http.ResponseWriter, r *http.Request) {
 		a.mu.Unlock()
 		return write("snapshot", after, map[string]any{"nodes": fleet, "counters": counters, "incidents": engine.Incidents(s.Tenant), "remediations": remediations})
 	}
+	wake, unsubscribe := engine.Subscribe(s.Tenant)
+	defer unsubscribe()
 	if !snapshot() {
 		return
 	}
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
+	expiry := time.NewTimer(time.Until(s.Expires))
+	defer expiry.Stop()
 	for {
 		// Revalidate on every tick; logout and expiry terminate existing streams.
 		a.mu.Lock()
@@ -257,8 +275,11 @@ func (g *Gateway) stream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		events, gap := engine.Events(s.Tenant, after)
-		if gap && !snapshot() {
-			return
+		if gap {
+			after = 0
+			if !snapshot() {
+				return
+			}
 		}
 		for _, event := range events {
 			if !write(event.Kind, event.ID, event.Data) {
@@ -269,6 +290,9 @@ func (g *Gateway) stream(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-expiry.C:
+			return
+		case <-wake:
 		case <-ticker.C:
 			if !write("keepalive", after, map[string]string{"at": collect.Timestamp(time.Now())}) {
 				return

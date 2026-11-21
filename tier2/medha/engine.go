@@ -101,14 +101,15 @@ type Event struct {
 	tenant string
 }
 type Engine struct {
-	mu        sync.Mutex
-	Config    Config
-	Books     Books
-	nodes     map[string]*node
-	incidents map[string][]Explanation
-	counters  map[string]Counters
-	events    map[string][]Event
-	next      uint64
+	mu          sync.Mutex
+	Config      Config
+	Books       Books
+	nodes       map[string]*node
+	incidents   map[string][]Explanation
+	counters    map[string]Counters
+	events      map[string][]Event
+	next        uint64
+	subscribers map[string]map[chan struct{}]struct{}
 }
 
 func New(c Config, b Books) *Engine {
@@ -124,6 +125,7 @@ func (e *Engine) event(tenant, kind string, v any) {
 		list = list[len(list)-256:]
 	}
 	e.events[tenant] = list
+	e.notify(tenant)
 }
 func median(v []float64) float64 {
 	if len(v) == 0 {
@@ -285,6 +287,7 @@ func (e *Engine) Observe(batch telemetry.Batch, now time.Time, duplicate bool) {
 	defer e.mu.Unlock()
 	key := batch.Tenant + ":" + batch.CollectorID
 	n := e.nodes[key]
+	created := n == nil
 	if n == nil {
 		n = &node{Node: Node{Tenant: batch.Tenant, Collector: batch.CollectorID, Region: batch.Region, Health: "Excellent", Connection: "ONLINE", Metrics: map[string]telemetry.Stats{}, Sources: []string{}, History: []Transition{}}, baselines: map[string]*baseline{}, signals: map[string]Signal{}, signalAt: map[string]time.Time{}, sourceAt: map[string]time.Time{}}
 		e.nodes[key] = n
@@ -361,6 +364,9 @@ func (e *Engine) Observe(batch telemetry.Batch, now time.Time, duplicate bool) {
 		}
 	}
 	e.health(n, now)
+	if created {
+		e.event(n.Tenant, "health", n.Node)
+	}
 	e.event(n.Tenant, "telemetry", batch)
 }
 func (e *Engine) correlate(n *node, now, at time.Time) {
@@ -602,6 +608,11 @@ func (e *Engine) Events(tenant string, after uint64) ([]Event, bool) {
 	list := e.events[tenant]
 	out := []Event{}
 	gap := len(list) > 0 && after != 0 && after < list[0].ID
+	// Event IDs are process-local; a reconnect may carry the previous boot's ID.
+	if after > e.next {
+		after = 0
+		gap = true
+	}
 	for _, v := range list {
 		if v.ID > after {
 			out = append(out, clone(v))

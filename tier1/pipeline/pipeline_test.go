@@ -53,3 +53,27 @@ func TestIdleWindowFlushAndSinkFailureJoinSources(t *testing.T) {
 		t.Fatal("source goroutine was not joined")
 	}
 }
+
+func TestHostedWindowFlushesInitialSampleImmediately(t *testing.T) {
+	id, err := filter.LoadIdentity(filepath.Join(t.TempDir(), "tenant.key"), "tenant_alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gate, err := policy.Load("../../config/allowlist.yaml", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := idleSource{stopped: make(chan struct{})}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	want := errors.New("initial sample received")
+	err = Run(ctx, []collect.Source{source}, Options{Window: 2 * time.Second, Tenant: "tenant_alpha", NodeID: "node", Region: "ap-south-1", Identity: id, Gate: gate}, func(policy.Approved) error { return want })
+	if !errors.Is(err, want) || ctx.Err() != nil {
+		t.Fatal("initial sample waited for rollup timer")
+	}
+	select {
+	case <-source.stopped:
+	default:
+		t.Fatal("producer leaked")
+	}
+}

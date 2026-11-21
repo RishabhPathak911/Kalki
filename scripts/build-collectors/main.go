@@ -20,9 +20,9 @@ func build() error {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return err
 	}
-	for _, target := range []struct{ os, arch, suffix string }{{"linux", "amd64", ""}, {"darwin", "arm64", ""}, {"windows", "amd64", ".exe"}} {
+	for _, target := range []struct{ os, arch, suffix string }{{"linux", "amd64", ""}, {"linux", "arm64", ""}, {"darwin", "arm64", ""}, {"darwin", "amd64", ""}, {"windows", "amd64", ".exe"}} {
 		name := "collector-" + target.os + "-" + target.arch + target.suffix
-		cmd := exec.Command("go", "build", "-trimpath", "-o", filepath.Join(root, name), "./tier1")
+		cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", filepath.Join(root, name), "./tier1")
 		for _, v := range os.Environ() {
 			if !strings.HasPrefix(v, "GOOS=") && !strings.HasPrefix(v, "GOARCH=") && !strings.HasPrefix(v, "CGO_ENABLED=") {
 				cmd.Env = append(cmd.Env, v)

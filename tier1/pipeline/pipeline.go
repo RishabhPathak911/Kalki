@@ -17,6 +17,7 @@ import (
 )
 
 type Options struct {
+	Window      time.Duration
 	CollectorID string // Optional opaque onboarding ID; raw host identities remain local.
 	Tenant      string
 	NodeID      string
@@ -31,6 +32,13 @@ type Options struct {
 func Run(ctx context.Context, sources []collect.Source, options Options, sink func(policy.Approved) error) error {
 	if options.Identity == nil || options.Gate == nil || sink == nil {
 		return fmt.Errorf("privacy pipeline: missing configuration")
+	}
+	window := options.Window
+	if window == 0 {
+		window = 5 * time.Second
+	}
+	if window < time.Second || window > 60*time.Second {
+		return fmt.Errorf("window must be between 1s and 60s")
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -89,8 +97,9 @@ func Run(ctx context.Context, sources []collect.Source, options Options, sink fu
 		}
 		return nil
 	}
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(window)
 	defer ticker.Stop()
+	initial := options.Window > 0 && options.Window < 5*time.Second
 	// Every return joins the producer. This also stops source goroutines when an
 	// approved sink fails, without leaving them blocked on the fan-in channel.
 	stop := func() {
@@ -111,6 +120,13 @@ func Run(ctx context.Context, sources []collect.Source, options Options, sink fu
 			if err := aggregator.Add(sample); err != nil {
 				stop()
 				return err
+			}
+			if initial {
+				initial = false
+				if err := flush(); err != nil {
+					stop()
+					return err
+				}
 			}
 		case <-ticker.C:
 			if err := flush(); err != nil {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	"kalki/tier1/policy"
 	"kalki/tier2/ingest"
+	"kalki/tier2/store"
 	"kalki/tier2/workspace"
 )
 
@@ -26,14 +28,12 @@ func main() {
 		os.Exit(1)
 	}
 }
-
 func password(key, fallback string) string {
 	if s := os.Getenv(key); s != "" {
 		return s
 	}
 	return fallback
 }
-
 func run() error {
 	addr := flag.String("addr", "127.0.0.1:8443", "ap-south-1 HTTPS listener")
 	euAddr := flag.String("eu-addr", "127.0.0.1:8444", "eu-central-1 HTTPS listener")
@@ -47,36 +47,45 @@ func run() error {
 	thresholds := flag.String("thresholds", "config/thresholds.yaml", "Medha thresholds")
 	playbooks := flag.String("playbooks", "config/playbooks.yaml", "Medha explanations")
 	flag.Parse()
-
+	publicURL := os.Getenv("RENDER_EXTERNAL_URL")
+	hosted := publicURL != ""
+	if hosted {
+		u, e := url.Parse(publicURL)
+		if e != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" || u.User != nil || u.RawQuery != "" {
+			return fmt.Errorf("invalid public HTTPS origin")
+		}
+		*origin = publicURL
+	}
 	gate, err := policy.Load(*allowlist, nil)
 	if err != nil {
 		return err
 	}
-	a := workspace.NewAuthority(
-		password("KALKI_ALPHA_PASSWORD", "alpha-demo-local"),
-		password("KALKI_BETA_PASSWORD", "beta-demo-local"),
-	)
+	a := workspace.NewAuthority(password("KALKI_ALPHA_PASSWORD", "alpha-demo-local"), password("KALKI_BETA_PASSWORD", "beta-demo-local"))
 	if err := a.ConfigureMedha(*thresholds, *playbooks); err != nil {
 		return err
 	}
-
-	// Use Render's external HTTPS URL as the onboarding origin when running on Render.
-	apPublicURL := *origin
-	euPublicURL := *euOrigin
-	if ext := strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/"); ext != "" {
-		if os.Getenv("KALKI_REGION") == "eu-central-1" {
-			euPublicURL = ext
-		} else {
-			apPublicURL = ext
-		}
-	}
-
-	handlers := map[string]http.Handler{}
 	servers := []*http.Server{}
-	for _, cfg := range []struct{ addr, origin, region string }{
-		{*addr, apPublicURL, "ap-south-1"},
-		{*euAddr, euPublicURL, "eu-central-1"},
-	} {
+	configs := []struct{ addr, origin, region string }{{*addr, *origin, "ap-south-1"}, {*euAddr, *euOrigin, "eu-central-1"}}
+	if hosted {
+		region := password("KALKI_REGION", "ap-south-1")
+		configs = configs[:1]
+		configs[0].region = region
+		configs[0].addr = "0.0.0.0:" + password("PORT", "10000")
+	}
+	db, err := store.Open(context.Background(), os.Getenv("DATABASE_URL"))
+	if err != nil {
+		return err
+	}
+	if db != nil {
+		defer func() {
+			ctx, c := context.WithTimeout(context.Background(), 10*time.Second)
+			defer c()
+			if db.Close(ctx) != nil {
+				log.Print("telemetry drain incomplete")
+			}
+		}()
+	}
+	for _, cfg := range configs {
 		receiver, err := ingest.New(gate, cfg.region, *capacity)
 		if err != nil {
 			return err
@@ -85,93 +94,33 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		handlers[cfg.region] = handler
-		servers = append(servers, &http.Server{
-			Addr:              cfg.addr,
-			Handler:           handler,
-			TLSConfig:         &tls.Config{MinVersion: tls.VersionTLS12},
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       10 * time.Second,
-			WriteTimeout:      10 * time.Second,
-			IdleTimeout:       30 * time.Second,
-			MaxHeaderBytes:    16384,
-			ErrorLog:          log.New(io.Discard, "", 0),
-		})
+		var serve http.Handler = handler
+		if hosted {
+			serve = renderHandler(handler, db)
+		}
+		servers = append(servers, &http.Server{Addr: cfg.addr, Handler: serve, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384, ErrorLog: log.New(io.Discard, "", 0)})
 	}
-
+	if err := a.AttachStore(db, *capacity); err != nil {
+		return err
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	go a.RunHealth(ctx)
-
-	// Render / cloud reverse-proxy mode: single plain-HTTP listener on 0.0.0.0:$PORT.
-	if port := os.Getenv("PORT"); port != "" {
-		region := os.Getenv("KALKI_REGION")
-		if region == "" {
-			region = "ap-south-1"
-		}
-		handler, ok := handlers[region]
-		if !ok {
-			return fmt.Errorf("invalid KALKI_REGION %q: expected ap-south-1 or eu-central-1", region)
-		}
-
-		mux := http.NewServeMux()
-		mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
-		})
-		mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Render terminates TLS at its edge and forwards plain HTTP with X-Forwarded-Proto: https.
-			// workspace.Gateway and ingest.Server require r.TLS != nil; populate it for TLS-terminated
-			// (or local PORT test) requests while still rejecting explicit X-Forwarded-Proto: http.
-			if r.TLS == nil {
-				if proto := r.Header.Get("X-Forwarded-Proto"); proto == "" || proto == "https" {
-					r2 := r.Clone(r.Context())
-					r2.TLS = &tls.ConnectionState{Version: tls.VersionTLS12}
-					r = r2
-				}
-			}
-			handler.ServeHTTP(w, r)
-		}))
-
-		httpAddr := "0.0.0.0:" + port
-		srv := &http.Server{
-			Addr:              httpAddr,
-			Handler:           mux,
-			ReadHeaderTimeout: 5 * time.Second,
-			ReadTimeout:       10 * time.Second,
-			IdleTimeout:       30 * time.Second,
-			MaxHeaderBytes:    16384,
-			ErrorLog:          log.New(io.Discard, "", 0),
-		}
-
-		done := make(chan error, 1)
-		go func() { done <- srv.ListenAndServe() }()
-		fmt.Printf("Kalki: listening on HTTP %s (region=%s); volatile in-memory state\n", httpAddr, region)
-
-		select {
-		case err = <-done:
-		case <-ctx.Done():
-			shutdown, stop := context.WithTimeout(context.Background(), 5*time.Second)
-			defer stop()
-			if e := srv.Shutdown(shutdown); e != nil {
-				err = errors.Join(err, e, srv.Close())
-			}
-			if e := <-done; !errors.Is(e, http.ErrServerClosed) {
-				err = errors.Join(err, e)
-			}
-		}
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return err
-	}
-
-	// Default local/LAN dual-HTTPS mode.
 	done := make(chan error, len(servers))
 	for _, s := range servers {
-		go func(s *http.Server) { done <- s.ListenAndServeTLS(*cert, *key) }(s)
+		go func(s *http.Server) {
+			if hosted {
+				done <- s.ListenAndServe()
+			} else {
+				done <- s.ListenAndServeTLS(*cert, *key)
+			}
+		}(s)
 	}
-	fmt.Printf("Kalki: authenticated HTTPS regions on %s and %s; volatile in-memory state\n", *addr, *euAddr)
+	if db != nil {
+		fmt.Println("Kalki: persistent PostgreSQL")
+	} else {
+		fmt.Println("Kalki: volatile in-memory")
+	}
 	received := 0
 	select {
 	case err = <-done:
@@ -196,4 +145,35 @@ func run() error {
 		return nil
 	}
 	return err
+}
+
+// Only installed in explicit Render mode; the internal listener is reached via
+// Render's TLS-terminating ingress. Core gateways still require r.TLS != nil.
+func renderHandler(next http.Handler, db *store.Store) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			if r.Method != "GET" {
+				w.WriteHeader(405)
+				return
+			}
+			if db != nil && db.Ping(r.Context()) != nil {
+				w.WriteHeader(503)
+				io.WriteString(w, `{"status":"unavailable"}`)
+				return
+			}
+			io.WriteString(w, `{"status":"ok"}`)
+			return
+		}
+		if r.TLS == nil {
+			if strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")) != "https" {
+				http.Error(w, "HTTPS required", 426)
+				return
+			}
+			r = r.Clone(r.Context())
+			r.TLS = &tls.ConnectionState{Version: tls.VersionTLS12, HandshakeComplete: true}
+		}
+		next.ServeHTTP(w, r)
+	})
 }

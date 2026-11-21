@@ -30,3 +30,4 @@ data/datasets/*
 *.wal
 .playwright-mcp/
 *.tsbuildinfo
+/tier2-server

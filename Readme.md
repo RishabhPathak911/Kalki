@@ -4,6 +4,9 @@ Final Deployment
 
 For the deployed website, see [Vercel routing and backend connection](docs/vercel.md).
 The combined build serves the landing page at `/` and the console at `/app`.
+For Render + Aiven persistence and cross-platform one-line onboarding, follow
+[the hosted deployment guide](docs/hosted-deployment.md). Set DATABASE_URL only
+on the receiver; leaving it empty preserves the offline in-memory behavior.
 
 Phases 1–7 implement an offline LAN platform with Go services, collector disk WALs,
 in-memory regional receivers and a React console. No database or external SaaS is
@@ -31,7 +34,7 @@ Prana collection → Kavach privacy → Nadi rollups/security
 
 ## One-laptop demo — PowerShell
 
-Prerequisites: Go 1.22+, Node 24, C compiler for race tests. Download dependencies
+Prerequisites: Go 1.25+, Node 24, C compiler for race tests. Download dependencies
 before disconnecting. Terminal A, repository root:
 
 ```powershell

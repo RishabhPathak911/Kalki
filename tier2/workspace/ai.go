@@ -10,6 +10,7 @@ import (
 func (g *Gateway) ai(w http.ResponseWriter, r *http.Request) {
 	a := g.authority
 	a.mu.Lock()
+	a.persistErr = nil
 	key := bearer(r)
 	s, ok := a.sessions[key]
 	if !ok || !time.Now().Before(s.Expires) {
@@ -59,6 +60,11 @@ func (g *Gateway) ai(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.audit(s.Tenant, event, 200)
+	if a.persistErr != nil {
+		a.mu.Unlock()
+		failure(w, 503)
+		return
+	}
 	a.mu.Unlock()
 	// External I/O must never hold the authority lock or stall ingest/SSE.
 	result, err := ai.FromEnv().Run(r.Context(), input)

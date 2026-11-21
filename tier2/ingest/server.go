@@ -138,6 +138,13 @@ func (s *Server) accept(b telemetry.Batch, hash string, now time.Time) (telemetr
 		return telemetry.Ack{}, 403
 	}
 	duplicate := false
+	// Old committed sequences may have outlived the retained hash window after
+	// PostgreSQL hydration. ACK without mutating telemetry or accepting new data.
+	if _, known := n.seen[b.Seq]; !known && b.Seq <= n.contiguous {
+		n.duplicates++
+		n.lastSeen = collect.Timestamp(now)
+		return telemetry.Ack{Seq: b.Seq, HighestContiguous: n.contiguous, Gaps: gaps(n), PayloadSHA256: hash, ServerID: s.epoch, ReceivedAt: collect.Timestamp(now), Duplicate: true, DuplicatesRejected: n.duplicates}, 200
+	}
 	if prev, ok := n.seen[b.Seq]; ok {
 		if prev != hash {
 			return telemetry.Ack{}, 409
@@ -145,7 +152,7 @@ func (s *Server) accept(b telemetry.Batch, hash string, now time.Time) (telemetr
 		duplicate = true
 		n.duplicates++
 	} else {
-		if b.Seq > n.contiguous+4096 || len(n.seen) >= 100000 {
+		if b.Seq > n.contiguous+4096 {
 			return telemetry.Ack{}, 429
 		}
 		watermark := n.watermark
@@ -178,6 +185,10 @@ func (s *Server) accept(b telemetry.Batch, hash string, now time.Time) (telemetr
 				break
 			}
 			n.contiguous++
+			// Bound hash history without stopping long-running collectors.
+			if n.contiguous > 4096 {
+				delete(n.seen, n.contiguous-4096)
+			}
 		}
 		for _, record := range b.Records {
 			entry := StoredRecord{Seq: b.Seq, BatchID: b.BatchID, ReceivedAt: collect.Timestamp(now), Record: record}

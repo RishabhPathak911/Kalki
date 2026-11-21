@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"kalki/tier1/policy"
 	"kalki/tier2/ingest"
 	"kalki/tier2/medha"
+	"kalki/tier2/store"
 )
 
 type identity struct{ Tenant, Region, Collector string }
@@ -76,6 +78,8 @@ func (c *chain) verify() bool {
 // Authority is shared by the two regional listeners in the same process.
 // Keep it outside the HTTP mux: no request can select its own tenant scope.
 type Authority struct {
+	db            *store.Store
+	persistErr    error
 	engine        *medha.Engine
 	remediations  map[string][]Remediation
 	mu            sync.Mutex
@@ -107,7 +111,19 @@ func (a *Authority) audit(tenant, event string, status int) {
 		c = &chain{}
 		a.audits[tenant] = c
 	}
+	if a.persistErr != nil {
+		return
+	}
 	c.append(event, status)
+	if a.db != nil {
+		v := c.Entries[len(c.Entries)-1]
+		if err := a.db.AppendAudit(store.Audit{Tenant: tenant, Index: v.Index, At: v.At, Event: v.Event, Status: v.Status, Previous: v.Previous, Hash: v.Hash}); err != nil {
+			c.Entries = c.Entries[:len(c.Entries)-1]
+			c.Count--
+			c.Head = v.Previous
+			a.persistErr = err
+		}
+	}
 }
 func bearer(r *http.Request) [32]byte {
 	v := r.Header.Get("Authorization")
@@ -167,7 +183,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400)
 		return
 	}
-	if r.URL.Path == "/install.sh" || strings.HasPrefix(r.URL.Path, "/downloads/") {
+	if r.URL.Path == "/install.sh" || r.URL.Path == "/install.ps1" || strings.HasPrefix(r.URL.Path, "/downloads/") {
 		g.download(w, r)
 		return
 	}
@@ -182,6 +198,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	var finish func()
+	w, finish = a.durable(w)
+	defer finish()
 	if r.URL.Path == "/api/auth/login" {
 		g.login(w, r)
 		return
@@ -204,7 +223,16 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			failure(w, 405)
 			return
 		}
+		if a.db != nil {
+			if err := a.db.DeleteSession(hashText(key)); err != nil {
+				failure(w, 503)
+				return
+			}
+		}
 		delete(a.sessions, key)
+		if a.engine != nil {
+			a.engine.Notify(s.Tenant)
+		}
 		a.audit(s.Tenant, "logout", 200)
 		respond(w, 200, map[string]bool{"logged_out": true})
 		return
@@ -341,6 +369,12 @@ func (g *Gateway) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expires := time.Now().Add(8 * time.Hour)
+	if a.db != nil {
+		if err := a.db.SaveSession(store.Session{Hash: hashText(sha256.Sum256([]byte(token))), Tenant: u.Tenant, Region: u.Region, Expires: expires}); err != nil {
+			failure(w, 503)
+			return
+		}
+	}
 	a.sessions[sha256.Sum256([]byte(token))] = session{u.identity, expires}
 	a.audit(u.Tenant, "login_success", 200)
 	respond(w, 200, map[string]any{"token": token, "tenant": u.Tenant, "region": u.Region, "expires_at": collect.Timestamp(expires)})
@@ -404,6 +438,12 @@ func (g *Gateway) mint(w http.ResponseWriter, r *http.Request, id identity) {
 	}
 	id.Collector = req.Collector
 	key := sha256.Sum256([]byte(token))
+	if a.db != nil {
+		if err := a.db.SaveToken(store.Token{Hash: hashText(key), Tenant: id.Tenant, Region: id.Region, Collector: id.Collector}); err != nil {
+			failure(w, 503)
+			return
+		}
+	}
 	delete(a.tokens, old)
 	a.tokens[key] = id
 	a.collectors[slot] = key
@@ -412,6 +452,10 @@ func (g *Gateway) mint(w http.ResponseWriter, r *http.Request, id identity) {
 		event = "token_rotate"
 	}
 	a.audit(id.Tenant, event, 200)
+	if os.Getenv("RENDER_EXTERNAL_URL") != "" || os.Getenv("KALKI_PUBLIC_TLS") == "true" {
+		respond(w, 200, publicCommands(home.origin, id.Tenant, id.Region, id.Collector, token))
+		return
+	}
 	flags := []string{"--tenant=" + id.Tenant, "--region=" + id.Region, "--collector-id=" + id.Collector, "--tier2-url=" + home.origin, "--token=" + token, "--ca-cert=ca.pem", "--probe-target=127.0.0.1:1", "--key-file=data/" + id.Tenant + ".key", "--wal-path=data/" + id.Collector + ".wal"}
 	for i := range flags {
 		flags[i] = quote(flags[i])
@@ -438,6 +482,13 @@ func (g *Gateway) collect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var batch telemetry.Batch
+	var payloadHash string
+	reserved := false
+	defer func() {
+		if reserved {
+			a.db.Release()
+		}
+	}()
 	if r.URL.Path == "/api/ingest" {
 		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1024*1024))
 		if err != nil {
@@ -453,6 +504,7 @@ func (g *Gateway) collect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = json.Unmarshal(data, &batch)
+		payloadHash = p.SHA256()
 		if batch.Region != id.Region {
 			a.audit(id.Tenant, "wrong_region", 421)
 			failure(w, 421)
@@ -462,6 +514,13 @@ func (g *Gateway) collect(w http.ResponseWriter, r *http.Request) {
 			a.audit(id.Tenant, "ingest_reject", 403)
 			failure(w, 403)
 			return
+		}
+		if a.db != nil {
+			if a.persistErr != nil || !a.db.Reserve() {
+				failure(w, 503)
+				return
+			}
+			reserved = true
 		}
 		r = r.Clone(r.Context())
 		r.Body = io.NopCloser(bytes.NewReader(data))
@@ -475,10 +534,18 @@ func (g *Gateway) collect(w http.ResponseWriter, r *http.Request) {
 			event = "ingest_reject"
 		}
 		a.audit(id.Tenant, event, rec.code)
-		if rec.code == 200 && a.engine != nil {
+		if rec.code == 200 {
 			var ack telemetry.Ack
 			if json.Unmarshal(rec.body.Bytes(), &ack) == nil {
-				a.engine.Observe(batch, time.Now(), ack.Duplicate)
+				var incidents []medha.Explanation
+				if a.engine != nil {
+					a.engine.Observe(batch, time.Now(), ack.Duplicate)
+					incidents = a.engine.Incidents(batch.Tenant)
+				}
+				if a.db != nil {
+					a.db.Enqueue(store.Job{Batch: batch, Hash: payloadHash, Received: ack.ReceivedAt, Progress: g.receiver.Checkpoint(batch.Tenant, batch.CollectorID), Incidents: incidents})
+					reserved = false
+				}
 			}
 		}
 	}

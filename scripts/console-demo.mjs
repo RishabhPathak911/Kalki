@@ -18,7 +18,7 @@ try{
  const beta=await call(19444,'/api/auth/login',{username:'tenant_beta',password:process.env.KALKI_BETA_PASSWORD||'beta-demo-local'});
  for(const [index,session] of [alpha,alpha,beta,beta].entries()){
   const port=index<2?19443:19444;const id=`host_${randomBytes(4).toString('hex')}`;const minted=await call(port,'/api/collectors/tokens',{collector_id:id},session.token);
-  start(`./data/phase6-collector${ext}`,[`--tenant=${session.tenant}`,`--region=${session.region}`,`--collector-id=${id}`,`--tier2-url=https://127.0.0.1:${port}`,`--probe-target=127.0.0.1:${port}`,`--wal-path=${run}/${id}.wal`,`--key-file=${run}/${session.tenant}.key`,`--log-file=${run}/${id}-auth.log`,`--proof-addr=127.0.0.1:${19090+index}`,'--demo-controls'],{KALKI_TOKEN:minted.token},id);
+  start(`./data/phase6-collector${ext}`,[`--tenant=${session.tenant}`,`--region=${session.region}`,`--collector-id=${id}`,`--tier2-url=https://127.0.0.1:${port}`,`--probe-target=127.0.0.1:${port}`,`--wal-path=${run}/${id}.wal`,`--key-file=${run}/${session.tenant}.key`,`--log-file=${run}/${id}-auth.log`,`--proof-addr=127.0.0.1:${19090+index}`,'--demo-controls','--ca-cert=data/certs/ca.pem'],{KALKI_TOKEN:minted.token},id);
   console.log(`${session.tenant}: ${id}, proof port ${19090+index}`);
  }
  console.log('Four real collectors running. Configure dashboard AP=19443 EU=19444 proof=19090. Ctrl+C stops only this demo.');

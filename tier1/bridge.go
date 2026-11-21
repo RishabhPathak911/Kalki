@@ -29,15 +29,18 @@ type bridgeConfig struct {
 }
 
 func runBridge(ctx context.Context, sources []collect.Source, options pipeline.Options, out io.Writer, cfg bridgeConfig) error {
-	ca, err := os.ReadFile(cfg.CA)
-	if err != nil {
-		return fmt.Errorf("cannot read receiver CA certificate")
+	var roots *x509.CertPool
+	if cfg.CA != "" {
+		ca, err := os.ReadFile(cfg.CA)
+		if err != nil {
+			return fmt.Errorf("cannot read receiver CA certificate")
+		}
+		roots = x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(ca) {
+			return fmt.Errorf("invalid receiver CA certificate")
+		}
 	}
-	roots := x509.NewCertPool()
-	if !roots.AppendCertsFromPEM(ca) {
-		return fmt.Errorf("invalid receiver CA certificate")
-	}
-	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}
+	transport := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}, MaxIdleConnsPerHost: 4, IdleConnTimeout: 90 * time.Second}
 	defer transport.CloseIdleConnections()
 	binding := wal.Binding{Tenant: options.Tenant, CollectorID: options.Identity.Pseudonym("host", options.NodeID), Region: options.Region}
 	if options.CollectorID != "" {

@@ -37,31 +37,14 @@ before the function timeout, using the existing Last-Event-ID reconnect logic.
 Missing backend configuration produces an explicit service-not-connected state.
 No mock nodes or fabricated device measurements are supplied.
 
-The current in-memory Go receiver requires a running service with stable state.
-Simply deploying these static assets and proxy functions does not deploy that
-receiver or convert it into a durable serverless backend. A public Vercel function
-cannot reach `127.0.0.1` on your laptop. LAN-only proof/demo controls remain on the
-LAN console; the hosted proxy does not expose them.
+The Go receiver now supports optional PostgreSQL persistence via DATABASE_URL.
+Follow [Render + Aiven deployment](hosted-deployment.md) for the build command,
+secret environment settings, one-line installers and durability limits. Vercel
+functions proxy the receiver; they do not run device collectors. LAN-only proof
+and demo controls remain local.
 
 A browser cannot enumerate arbitrary private devices or read their OS CPU, memory
 and logs. Each monitored device needs a collector or another authorized telemetry
 source. Configure the receiver and collectors as startup services once; visitors
 then just open this website, sign in and search the fleet by collector ID, region
 or health. Raw hostnames remain pseudonymized by the privacy boundary.
-
-For a fully Vercel-managed backend, persistent tenant/auth/telemetry storage and a
-receiver deployment design are still required; the prior offline memory-only
-architecture cannot provide that by changing routing alone.
-
-## Checks
-
-`npm run build` packages both applications. `npm run test:hosting` checks output
-assets and proxy TLS/auth/route restrictions using local test certificates.
-`npm test --prefix dashboard` checks the existing stream and local gateway logic.
-
-The existing site's deployment was not updated in this session: Vercel CLI
-reported an invalid token. Authenticate the CLI or redeploy through your existing
-Vercel dashboard after committing these changes. Backend URLs were not supplied.
-
-References: [Vercel project configuration](https://vercel.com/docs/project-configuration),
-[Node function runtime](https://vercel.com/docs/functions/runtimes/node-js).
