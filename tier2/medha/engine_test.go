@@ -255,3 +255,29 @@ func TestHeartbeatTransitionsBackfillAndTenantPeers(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveNode(t *testing.T) {
+	e := testEngine(t)
+	at := time.Now()
+	e.Observe(observation("tenant_alpha", "host_11111111", at, quiet, false), at, false)
+	fleet, _ := e.Fleet("tenant_alpha", at)
+	if len(fleet) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(fleet))
+	}
+	e.RemoveNode("tenant_alpha", "host_11111111")
+	fleet, _ = e.Fleet("tenant_alpha", at)
+	if len(fleet) != 0 {
+		t.Fatalf("expected 0 nodes after removal, got %d", len(fleet))
+	}
+	events, _ := e.Events("tenant_alpha", 0)
+	found := false
+	for _, ev := range events {
+		if ev.Kind == "node_removed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("node_removed event not found")
+	}
+}

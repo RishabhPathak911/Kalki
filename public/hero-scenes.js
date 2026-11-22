@@ -53,6 +53,10 @@ function isMotionPaused() {
   return reducedMotion || bodyPaused;
 }
 
+function getPlayableScenes() {
+  return HERO_SCENES.filter(s => s.type === 'canvas' || Boolean(s.hasFootage));
+}
+
 function updateScenePlayback() {
   const shouldPlay = !isPaused && !isOffscreen && !isMotionPaused();
 
@@ -85,8 +89,17 @@ function startCrossfadeTimer() {
   stopCrossfadeTimer();
   if (isPaused || isOffscreen || isMotionPaused()) return;
 
+  const playable = getPlayableScenes();
+  if (playable.length <= 1) {
+    // Only 1 scene has real footage/canvas; keep it active without crossfading to blank placeholders
+    return;
+  }
+
   crossfadeTimer = setTimeout(() => {
-    goToScene((activeIndex + 1) % HERO_SCENES.length);
+    const curPlayableIdx = playable.findIndex(s => s.id === HERO_SCENES[activeIndex]?.id);
+    const nextPlayable = playable[(curPlayableIdx + 1) % playable.length];
+    const nextFullIdx = HERO_SCENES.findIndex(s => s.id === nextPlayable.id);
+    goToScene(nextFullIdx >= 0 ? nextFullIdx : 0);
   }, 5000);
 }
 

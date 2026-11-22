@@ -85,8 +85,51 @@ function stopSloganLoop() {
 }
 
 function startSloganLoop() {
-  // Slogan remains fixed during scene changes per Phase 3 specifications
   stopSloganLoop();
+  if (checkPaused() || !heroTitleEl || !isHeroVisible) return;
+
+  const inners = heroTitleEl.querySelectorAll('.hero-line-inner');
+  if (inners.length === 0) return;
+
+  // Dwell for 3.6 seconds while resting in view
+  sloganTimer = setTimeout(() => {
+    if (checkPaused() || !isHeroVisible) return;
+
+    // 1. Exit: Slide up out of view through top mask with staggered timing
+    inners.forEach((line, idx) => {
+      line.classList.remove('revealed', 'line-in', 'line-reset');
+      setTimeout(() => {
+        if (checkPaused() || !isHeroVisible) return;
+        line.classList.add('line-out');
+      }, idx * 100);
+    });
+
+    // 2. Reset position below after exit transition completes (950ms)
+    sloganTimer = setTimeout(() => {
+      if (checkPaused() || !isHeroVisible) return;
+
+      inners.forEach(line => {
+        line.classList.remove('line-out');
+        line.classList.add('line-reset');
+      });
+
+      // 3. Pause briefly at bottom (280ms) then smoothly slide back up into view
+      sloganTimer = setTimeout(() => {
+        if (checkPaused() || !isHeroVisible) return;
+
+        inners.forEach((line, idx) => {
+          line.classList.remove('line-reset');
+          setTimeout(() => {
+            if (checkPaused() || !isHeroVisible) return;
+            line.classList.add('line-in');
+          }, idx * 100);
+        });
+
+        // 4. Continue permanent loop
+        startSloganLoop();
+      }, 280);
+    }, 950);
+  }, 3600);
 }
 
 /**
@@ -136,6 +179,9 @@ function setupIntro() {
             heroBottomEl.classList.add('revealed');
           }, 120 + inners.length * 120 + 300);
         }
+
+        // Start permanent slogan appearance loop
+        startSloganLoop();
       });
     }
   }

@@ -625,3 +625,18 @@ func (e *Engine) Publish(tenant, kind string, v any) {
 	defer e.mu.Unlock()
 	e.event(tenant, kind, v)
 }
+func (e *Engine) RemoveNode(tenant, collector string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	key := tenant + ":" + collector
+	if n, ok := e.nodes[key]; ok {
+		if n.incident != "" {
+			e.resolve(n, time.Now())
+		}
+		delete(e.nodes, key)
+		e.event(tenant, "node_removed", map[string]string{
+			"tenant":       tenant,
+			"collector_id": collector,
+		})
+	}
+}

@@ -100,6 +100,11 @@ func runBridge(ctx context.Context, sources []collect.Source, options pipeline.O
 	}
 	stopDelivery()
 	deliveryErr := <-deliveryDone
+	disconnectCtx, cancelDisconnect := context.WithTimeout(context.Background(), 2*time.Second)
+	if discErr := delivery.Disconnect(disconnectCtx); discErr != nil {
+		localLog("disconnect notification: %v", discErr)
+	}
+	cancelDisconnect()
 	shutdownCtx, stopShutdown := context.WithTimeout(context.Background(), 3*time.Second)
 	shutdownErr := proofServer.Shutdown(shutdownCtx)
 	stopShutdown()

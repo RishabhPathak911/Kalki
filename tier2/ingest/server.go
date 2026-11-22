@@ -246,6 +246,13 @@ func (s *Server) Snapshot(tenant, collector string) Snapshot {
 	result.LastSeen = n.lastSeen
 	return result
 }
+func (s *Server) Remove(tenant, collector string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if n := s.nodes[collector]; n != nil && n.tenant == tenant {
+		delete(s.nodes, collector)
+	}
+}
 func writeJSON(w http.ResponseWriter, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		return /* disconnected client; never log payload contents */

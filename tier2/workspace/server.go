@@ -205,7 +205,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		g.login(w, r)
 		return
 	}
-	if r.URL.Path == "/api/session" || r.URL.Path == "/api/ingest" {
+	if r.URL.Path == "/api/session" || r.URL.Path == "/api/ingest" || r.URL.Path == "/api/disconnect" {
 		g.collect(w, r)
 		return
 	}
@@ -477,8 +477,19 @@ func (g *Gateway) collect(w http.ResponseWriter, r *http.Request) {
 		failure(w, 421)
 		return
 	}
-	if (r.URL.Path == "/api/session" && r.Method != "GET") || (r.URL.Path == "/api/ingest" && r.Method != "POST") {
+	if (r.URL.Path == "/api/session" && r.Method != "GET") || ((r.URL.Path == "/api/ingest" || r.URL.Path == "/api/disconnect") && r.Method != "POST") {
 		failure(w, 405)
+		return
+	}
+	if r.URL.Path == "/api/disconnect" {
+		if a.engine != nil {
+			a.engine.RemoveNode(id.Tenant, id.Collector)
+		}
+		if g.receiver != nil {
+			g.receiver.Remove(id.Tenant, id.Collector)
+		}
+		a.audit(id.Tenant, "collector_disconnect", 200)
+		respond(w, 200, map[string]any{"disconnected": true})
 		return
 	}
 	var batch telemetry.Batch

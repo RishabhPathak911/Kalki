@@ -22,11 +22,56 @@ const types = {
 const server = http.createServer(async (req, res) => {
   try {
     const requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-	if (requested === '/app') {
-	  res.writeHead(302, { Location: process.env.KALKI_DASHBOARD_URL || 'http://localhost:5173' });
-	  res.end();
-	  return;
-	}
+    if (requested === '/app') {
+      if (process.env.KALKI_DASHBOARD_URL) {
+        res.writeHead(302, { Location: process.env.KALKI_DASHBOARD_URL });
+        res.end();
+        return;
+      }
+      res.writeHead(302, { Location: '/app/' });
+      res.end();
+      return;
+    }
+
+    if (requested.startsWith('/app/')) {
+      const distAppDir = path.join(root, 'dist');
+      let relPath = requested.slice(1);
+      if (relPath === 'app/') relPath = 'app/index.html';
+      let filePath = path.resolve(distAppDir, relPath);
+      let fileStat;
+      try {
+        fileStat = await stat(filePath);
+        if (!fileStat.isFile()) throw new Error();
+      } catch {
+        filePath = path.join(distAppDir, 'app/index.html');
+        try {
+          fileStat = await stat(filePath);
+        } catch {
+          res.writeHead(302, { Location: 'http://localhost:5173' });
+          res.end();
+          return;
+        }
+      }
+      const body = await readFile(filePath);
+      res.writeHead(200, {
+        'Content-Type': types[path.extname(filePath)] || 'application/octet-stream',
+        'Content-Length': body.length,
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff'
+      });
+      res.end(req.method === 'HEAD' ? undefined : body);
+      return;
+    }
+
+    if (requested === '/api/deployment-status') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      });
+      res.end(JSON.stringify({ regions: { 'ap-south-1': true, 'eu-central-1': true }, local_proof: false }));
+      return;
+    }
+
     const isDoc = requested.startsWith('/docs/');
     const base = path.join(root, isDoc ? 'docs' : 'public');
     const relative = isDoc ? requested.slice('/docs/'.length) : requested.slice(1) || 'index.html';

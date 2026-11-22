@@ -340,6 +340,10 @@ func (d *Delivery) session(ctx context.Context) (string, error) {
 	}
 	return response.ServerID, nil
 }
+func (d *Delivery) Disconnect(ctx context.Context) error {
+	return d.request(ctx, "POST", "/api/disconnect", nil, "", nil)
+}
+
 func (d *Delivery) deliver(ctx context.Context, e wal.Entry, epoch string) error {
 	d.proofs.Update(e, "SENT", "")
 	d.mu.Lock()
