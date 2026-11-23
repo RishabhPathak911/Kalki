@@ -1,37 +1,354 @@
+import {ConsoleHero,ConsoleFooter,TelemetryFeed} from './ConsoleChrome';
+import './operations.css';
 import {useConsoleTab} from './lib/navigation';
 import MedhaAI from './pages/MedhaAI';
 import ValidationPage from './pages/ValidationPage';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import LoginPage from './pages/LoginPage';
-import Fleet,{Badge} from './pages/FleetPage';
+import Fleet from './pages/FleetPage';
 import Incidents from './pages/IncidentsPage';
 import {AuditPage,DemoPage,LimitationsPage,ProofPage} from './pages/ProofPages';
 import {api,ApiError,loadSession,post,saveSession} from './lib/api';
 import {stream} from './lib/sse';
 import {number,orderedPoints,percentile} from './lib/data';
 import type {Batch,Incident,NodeData,Point,RecordData,Remediation,Session,Thresholds,Verification} from './lib/types';
-const tabs=[['Fleet Overview','▦'],['Incidents','◇'],['Egress Proof','⬡'],['Audit Log','≡'],['Demo Lab','⌘'],['Validation','✓'],['Limitations','◫']];
-export default function App(){const [session,setSession]=useState<Session|null>(loadSession);function login(s:Session){saveSession(s);setSession(s);}function clear(){saveSession(null);setSession(null);}return session?<Console key={session.token} session={session} clear={clear}/>:<LoginPage onLogin={login}/>;}
-function Console({session,clear}:{session:Session;clear:()=>void}){
- const [tab,setTab]=useConsoleTab();const [nodes,setNodes]=useState<NodeData[]>([]);const [incidents,setIncidents]=useState<Incident[]>([]);const [remediations,setRemediations]=useState<Remediation[]>([]);const [thresholds,setThresholds]=useState<Thresholds|null>(null);const [verification,setVerification]=useState<Verification|null>(null);const [suppressed,setSuppressed]=useState(0);const [points,setPoints]=useState<Point[]>([]);const [latencies,setLatencies]=useState<number[]>([]);const [skew,setSkew]=useState(0);const [connection,setConnection]=useState('CONNECTING');const [error,setError]=useState('');const [now,setNow]=useState(Date.now());const [adding,setAdding]=useState(false);
- const nodeIDs=useRef(new Set<string>());
- const pending=useRef<Point[]>([]);const alive=useRef(true);const loaded=useRef(new Set<string>());const controller=useRef(new AbortController());const refreshing=useRef(false);const refreshAgain=useRef(false);const seenLatency=useRef(new Set<string>());
- const refresh=useCallback(async()=>{if(!alive.current)return;if(refreshing.current){refreshAgain.current=true;return;}refreshing.current=true;try{const signal=controller.current.signal;const [fleet,list,rem,config,verify]=await Promise.all([api<{nodes:NodeData[];counters:{suppressed_alerts:number}}>(session,'/api/fleet',{signal}),api<{incidents:Incident[]}>(session,'/api/incidents',{signal}),api<{remediations:Remediation[]}>(session,'/api/remediations',{signal}),api<Thresholds>(session,'/api/thresholds',{signal}),api<Verification>(session,'/api/audit/verify',{signal})]);if(!alive.current)return;nodeIDs.current=new Set(fleet.nodes.map(n=>n.collector_id));setNodes(fleet.nodes);setSuppressed(fleet.counters.suppressed_alerts);setIncidents(list.incidents);setRemediations(rem.remediations);setThresholds(config);setVerification(verify);setError('');
-  for(const node of fleet.nodes){if(loaded.current.has(node.collector_id))continue;const history=await api<{records:{seq:number;record:RecordData}[]}>(session,`/api/records?collector_id=${encodeURIComponent(node.collector_id)}`,{signal});if(!alive.current)return;loaded.current.add(node.collector_id);setPoints(old=>orderedPoints(old,history.records.map(v=>({...v.record,key:`${v.record.collector_id}:${v.seq}:${v.record.source}:${v.record.collected_at}`}))));}
- }catch(e){if(alive.current){setVerification(null);setError(e instanceof Error?e.message:'Receiver unavailable.');if(e instanceof ApiError&&e.status===401)clear();}}finally{refreshing.current=false;if(refreshAgain.current&&alive.current){refreshAgain.current=false;void refresh();}}},[session]);
- useEffect(()=>{alive.current=true;controller.current=new AbortController();void refresh();const poll=setInterval(()=>void refresh(),5000);const clock=setInterval(()=>setNow(Date.now()),1000);const abort=new AbortController();
-  void stream(`/region/${session.region}/api/stream`,session.token,abort.signal,message=>{try{const value=JSON.parse(message.data);if(message.event==='snapshot'){loaded.current.clear();void refresh();}else if(message.event==='telemetry'){const b=value as Batch;if(b.tenant!==session.tenant)return;const incoming=b.records.map(r=>({...r,key:`${r.collector_id}:${b.seq}:${r.source}:${r.collected_at}`}));pending.current.push(...incoming.filter(p=>!seenLatency.current.has(p.key)));for(const p of incoming)seenLatency.current.add(p.key);if(seenLatency.current.size>4800)seenLatency.current=new Set([...seenLatency.current].slice(-2400));setPoints(old=>orderedPoints(old,incoming));if(!nodeIDs.current.has(b.collector_id))void refresh();setNodes(old=>old.map(n=>{if(n.collector_id!==b.collector_id)return n;const latest=b.records.filter(r=>r.source==='live').sort((a,z)=>Date.parse(z.collected_at)-Date.parse(a.collected_at))[0];return {...n,last_seen_at:new Date().toISOString(),...(latest&&Date.parse(latest.collected_at)>=Date.parse(n.latest_collected_at||'1970-01-01')?{metrics:{...n.metrics,...latest.metrics},latest_collected_at:latest.collected_at}:{})};}));}else if(['health','incident','remediation','node_removed','collector_disconnect'].includes(message.event)){if(message.event==='node_removed'||message.event==='collector_disconnect'){const colId=(value as {collector_id?:string;collector?:string})?.collector_id||(value as {collector_id?:string;collector?:string})?.collector;if(colId){nodeIDs.current.delete(colId);loaded.current.delete(colId);setNodes(old=>old.filter(n=>n.collector_id!==colId));setPoints(old=>old.filter(p=>p.collector_id!==colId));}}void refresh();}}catch{setError('An invalid stream event was ignored.');}},setConnection,clear);
-  return()=>{alive.current=false;abort.abort();controller.current.abort();clearInterval(poll);clearInterval(clock);};
- },[refresh,session]);
- useEffect(()=>{if(!pending.current.length)return;const frame=requestAnimationFrame(()=>{const ready=pending.current.splice(0);const rendered=Date.now();const valid=ready.map(p=>rendered-Date.parse(p.collected_at));setSkew(n=>n+valid.filter(x=>x<0).length);setLatencies(old=>[...old,...valid.filter(x=>Number.isFinite(x)&&x>=0)].slice(-512));const keys=new Set(ready.map(p=>p.key));setPoints(old=>old.map(p=>keys.has(p.key)?{...p,rendered_at:new Date(rendered).toISOString()}:p));});return()=>cancelAnimationFrame(frame);},[points]);
- async function signOut(){try{await post(session,'/api/auth/logout');}finally{clear();}}
- const p50=percentile(latencies,.5),p95=percentile(latencies,.95);const age=nodes.length?Math.max(...nodes.map(n=>Math.max(0,(now-Date.parse(n.last_seen_at))/1000))):null;const latest=incidents.at(-1);const active=incidents.filter(i=>i.status==='ACTIVE').length;
- return <div className="console"><aside className="sidebar"><button className="brand brand-button" onClick={()=>setTab('Fleet Overview')}><img src={`${import.meta.env.BASE_URL}kalki-eye.svg`} alt=""/><span>KALKI<small>OPERATIONS CONSOLE</small></span></button><div className="workspace"><span className="workspace-symbol">{session.tenant==='tenant_alpha'?'A':'B'}</span><div><strong>{session.tenant}</strong><small>{session.region}</small></div></div><p className="nav-caption">COMMAND PLANE</p><nav aria-label="Console views">{tabs.map(([name,icon])=><button key={name} className={tab===name?'active':''} aria-current={tab===name?'page':undefined} onClick={()=>setTab(name)}><span aria-hidden="true">{icon}</span>{name}{name==='Incidents'&&active>0&&<b>{active}</b>}</button>)}</nav><div className="sidebar-bottom"><span className="privacy-mark">◇</span><strong>Zero raw data egress</strong><small>Only allow-listed metadata crosses your collector boundary.</small><p>OFFLINE LAN / SELF-HOSTED</p></div></aside><div className="console-main"><header className="topbar"><div><span className="breadcrumb">Workspace /</span> {tab}</div><div className="header-actions"><span className={`stream-state ${connection==='CONNECTED'?'connected':''}`}><i/>{connection==='CONNECTED'?'Live stream':connection.toLowerCase()}</span><button onClick={()=>setAdding(true)}>+ Add Collector</button><button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Switch Workspace</button><button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Sign Out</button></div></header><div className="integrity-bar" aria-label="Live SLA and integrity"><div><small>E2E LATENCY · P50 / P95</small><strong className={p95!=null&&p95>10000?'warning':''}>{p50==null?'—':number(p50,0)} / {p95==null?'—':number(p95,0)} <em>ms</em></strong><span>target ≤10s · {latencies.length} renders</span></div><div><small>TIME TO DETECT</small><strong className={latest&&latest.time_to_detect_ms>15000?'warning':''}>{latest?number(latest.time_to_detect_ms,0):'—'} <em>ms</em></strong><span>target ≤15s</span></div><div><small>MAX HEARTBEAT AGE</small><strong className={age!=null&&age>60?'danger':''}>{age==null?'—':number(age)} <em>s</em></strong><span>target ≤60s</span></div><div><small>DELIVERY · LAST REPORTED</small><strong>{nodes.reduce((n,x)=>n+x.wal_depth,0)} <em>queued</em> / {nodes.reduce((n,x)=>n+x.duplicates_rejected,0)} <em>dupes</em></strong><span>{suppressed} alerts suppressed</span></div><div><small>AUDIT CHAIN</small><strong className={verification?.valid?'match':verification?'danger':'muted'}>{verification?.valid?'VERIFIED ✓':verification?'FAILED':'UNVERIFIED'}</strong><span>{verification?.entries??'—'} hash-linked entries</span></div></div><main className="content">{error&&<div role="alert" className="notice">{error} <button onClick={()=>void refresh()}>Retry</button></div>}{skew>0&&<div className="notice">{skew} negative latency samples excluded due to clock skew.</div>}{(tab==='Fleet Overview'||tab==='Incidents')&&<MedhaAI session={session}/ >}{tab==='Fleet Overview'&&<Fleet nodes={nodes} points={points} thresholds={thresholds} now={now}/ >}{tab==='Incidents'&&<Incidents session={session} incidents={incidents} remediations={remediations} refresh={refresh} onAudit={()=>setTab('Audit Log')}/ >}{tab==='Egress Proof'&&<ProofPage session={session}/ >}{tab==='Audit Log'&&<AuditPage session={session}/ >}{tab==='Demo Lab'&&<DemoPage session={session}/ >}{tab==='Validation'&&<ValidationPage session={session} latencies={latencies} reset={()=>setLatencies([])}/>}{tab==='Limitations'&&<LimitationsPage/>}<footer className="content-footer"><span>KALKI / {session.region.toUpperCase()}</span><span>All timestamps UTC · Measured latency includes backfill</span></footer></main></div>{adding&&<AddCollector session={session} close={()=>setAdding(false)}/>}</div>;
+
+export default function App(){
+  const [session,setSession]=useState<Session|null>(loadSession);
+  function login(s:Session){saveSession(s);setSession(s);}
+  function clear(){saveSession(null);setSession(null);}
+  return session?<Console key={session.token} session={session} clear={clear}/>:<LoginPage onLogin={login}/>;
 }
+
+function Console({session,clear}:{session:Session;clear:()=>void}){
+  const [tab,setTab]=useConsoleTab();
+  const [nodes,setNodes]=useState<NodeData[]>([]);
+  const [incidents,setIncidents]=useState<Incident[]>([]);
+  const [remediations,setRemediations]=useState<Remediation[]>([]);
+  const [thresholds,setThresholds]=useState<Thresholds|null>(null);
+  const [verification,setVerification]=useState<Verification|null>(null);
+  const [suppressed,setSuppressed]=useState(0);
+  const [points,setPoints]=useState<Point[]>([]);
+  const [latencies,setLatencies]=useState<number[]>([]);
+  const [skew,setSkew]=useState(0);
+  const [connection,setConnection]=useState('CONNECTING');
+  const [error,setError]=useState('');
+  const [now,setNow]=useState(Date.now());
+  const [adding,setAdding]=useState(false);
+
+  const nodeIDs=useRef(new Set<string>());
+  const pending=useRef<Point[]>([]);
+  const alive=useRef(true);
+  const loaded=useRef(new Set<string>());
+  const controller=useRef(new AbortController());
+  const refreshing=useRef(false);
+  const refreshAgain=useRef(false);
+  const seenLatency=useRef(new Set<string>());
+
+  const refresh=useCallback(async()=>{
+    if(!alive.current)return;
+    if(refreshing.current){refreshAgain.current=true;return;}
+    refreshing.current=true;
+    try{
+      const signal=controller.current.signal;
+      const [fleet,list,rem,config,verify]=await Promise.all([
+        api<{nodes:NodeData[];counters:{suppressed_alerts:number}}>(session,'/api/fleet',{signal}),
+        api<{incidents:Incident[]}>(session,'/api/incidents',{signal}),
+        api<{remediations:Remediation[]}>(session,'/api/remediations',{signal}),
+        api<Thresholds>(session,'/api/thresholds',{signal}),
+        api<Verification>(session,'/api/audit/verify',{signal})
+      ]);
+      if(!alive.current)return;
+      nodeIDs.current=new Set(fleet.nodes.map(n=>n.collector_id));
+      setNodes(fleet.nodes);
+      setSuppressed(fleet.counters.suppressed_alerts);
+      setIncidents(list.incidents);
+      setRemediations(rem.remediations);
+      setThresholds(config);
+      setVerification(verify);
+      setError('');
+      for(const node of fleet.nodes){
+        if(loaded.current.has(node.collector_id))continue;
+        const history=await api<{records:{seq:number;record:RecordData}[]}>(session,`/api/records?collector_id=${encodeURIComponent(node.collector_id)}`,{signal});
+        if(!alive.current)return;
+        loaded.current.add(node.collector_id);
+        setPoints(old=>orderedPoints(old,history.records.map(v=>({...v.record,key:`${v.record.collector_id}:${v.seq}:${v.record.source}:${v.record.collected_at}`}))));
+      }
+    }catch(e){
+      if(alive.current){
+        setVerification(null);
+        setError(e instanceof Error?e.message:'Receiver unavailable.');
+        if(e instanceof ApiError&&e.status===401)clear();
+      }
+    }finally{
+      refreshing.current=false;
+      if(refreshAgain.current&&alive.current){
+        refreshAgain.current=false;
+        void refresh();
+      }
+    }
+  },[session]);
+
+  const handleDeleteNode = useCallback(async (colId:string)=>{
+    try{
+      await post(session,'/api/fleet/remove',{collector_id:colId});
+    }catch{}
+    nodeIDs.current.delete(colId);
+    loaded.current.delete(colId);
+    setNodes(old=>old.filter(n=>n.collector_id!==colId));
+    setPoints(old=>old.filter(p=>p.collector_id!==colId));
+  },[session]);
+
+  useEffect(()=>{
+    alive.current=true;
+    controller.current=new AbortController();
+    void refresh();
+    const poll=setInterval(()=>void refresh(),5000);
+    const clock=setInterval(()=>setNow(Date.now()),1000);
+    const abort=new AbortController();
+
+    void stream(`/region/${session.region}/api/stream`,session.token,abort.signal,message=>{
+      try{
+        const value=JSON.parse(message.data);
+        if(message.event==='snapshot'){
+          loaded.current.clear();
+          void refresh();
+        }else if(message.event==='telemetry'){
+          const b=value as Batch;
+          if(b.tenant!==session.tenant)return;
+          const incoming=b.records.map(r=>({...r,key:`${r.collector_id}:${b.seq}:${r.source}:${r.collected_at}`}));
+          pending.current.push(...incoming.filter(p=>!seenLatency.current.has(p.key)));
+          for(const p of incoming)seenLatency.current.add(p.key);
+          if(seenLatency.current.size>4800)seenLatency.current=new Set([...seenLatency.current].slice(-2400));
+          setPoints(old=>orderedPoints(old,incoming));
+          if(!nodeIDs.current.has(b.collector_id))void refresh();
+          setNodes(old=>old.map(n=>{
+            if(n.collector_id!==b.collector_id)return n;
+            const latest=b.records.filter(r=>r.source==='live').sort((a,z)=>Date.parse(z.collected_at)-Date.parse(a.collected_at))[0];
+            return {
+              ...n,
+              last_seen_at:new Date().toISOString(),
+              ...(latest&&Date.parse(latest.collected_at)>=Date.parse(n.latest_collected_at||'1970-01-01')?{
+                metrics:{...n.metrics,...latest.metrics},
+                latest_collected_at:latest.collected_at
+              }:{})
+            };
+          }));
+        }else if(['health','incident','remediation','node_removed','collector_disconnect'].includes(message.event)){
+          if(message.event==='node_removed'||message.event==='collector_disconnect'){
+            const colId=(value as {collector_id?:string;collector?:string})?.collector_id||(value as {collector_id?:string;collector?:string})?.collector;
+            if(colId){
+              nodeIDs.current.delete(colId);
+              loaded.current.delete(colId);
+              setNodes(old=>old.filter(n=>n.collector_id!==colId));
+              setPoints(old=>old.filter(p=>p.collector_id!==colId));
+            }
+          }
+          void refresh();
+        }
+      }catch{
+        setError('An invalid stream event was ignored.');
+      }
+    },setConnection,clear);
+
+    return()=>{
+      alive.current=false;
+      abort.abort();
+      controller.current.abort();
+      clearInterval(poll);
+      clearInterval(clock);
+    };
+  },[refresh,session]);
+
+  useEffect(()=>{
+    if(!pending.current.length)return;
+    const frame=requestAnimationFrame(()=>{
+      const ready=pending.current.splice(0);
+      const rendered=Date.now();
+      const valid=ready.map(p=>rendered-Date.parse(p.collected_at));
+      setSkew(n=>n+valid.filter(x=>x<0).length);
+      setLatencies(old=>[...old,...valid.filter(x=>Number.isFinite(x)&&x>=0)].slice(-512));
+      const keys=new Set(ready.map(p=>p.key));
+      setPoints(old=>old.map(p=>keys.has(p.key)?{...p,rendered_at:new Date(rendered).toISOString()}:p));
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[points]);
+
+  async function signOut(){
+    try{await post(session,'/api/auth/logout');}finally{clear();}
+  }
+
+  const p50=percentile(latencies,.5),p95=percentile(latencies,.95);
+  const age=nodes.length?Math.max(...nodes.map(n=>Math.max(0,(now-Date.parse(n.last_seen_at))/1000))):null;
+  const latest=incidents.at(-1);
+  const active=incidents.filter(i=>i.status==='ACTIVE').length;
+
+  return (
+    <div className="console ops-console">
+      <div className="console-main">
+        <header className="topbar">
+          <button className="ops-home" onClick={()=>setTab('Fleet Overview')} aria-label="Kalki Fleet Overview">
+            KALKI <span>/ {session.tenant}</span>
+          </button>
+          <div className="header-actions">
+            <span className={`stream-state ${connection==='CONNECTED'?'connected':''}`}>
+              <i/>{connection==='CONNECTED'?'Live stream':connection.toLowerCase()}
+            </span>
+            <button onClick={()=>setAdding(true)}>+ Add Collector</button>
+            <button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Switch Workspace</button>
+            <button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Sign Out</button>
+          </div>
+        </header>
+
+        <ConsoleHero tab={tab} onTab={setTab} active={active}/>
+
+        <div className="integrity-bar" aria-label="Live SLA and integrity">
+          <div>
+            <small>E2E LATENCY · P50 / P95</small>
+            <strong className={p95!=null&&p95>10000?'warning':''}>
+              {p50==null?'—':number(p50,0)} / {p95==null?'—':number(p95,0)} <em>ms</em>
+            </strong>
+            <span>target ≤10s · {latencies.length} renders</span>
+          </div>
+          <div>
+            <small>TIME TO DETECT</small>
+            <strong className={latest&&latest.time_to_detect_ms>15000?'warning':''}>
+              {latest?number(latest.time_to_detect_ms,0):'—'} <em>ms</em>
+            </strong>
+            <span>target ≤15s</span>
+          </div>
+          <div>
+            <small>MAX HEARTBEAT AGE</small>
+            <strong className={age!=null&&age>60?'danger':''}>
+              {age==null?'—':number(age)} <em>s</em>
+            </strong>
+            <span>target ≤60s</span>
+          </div>
+          <div>
+            <small>DELIVERY · LAST REPORTED</small>
+            <strong>
+              {nodes.reduce((n,x)=>n+x.wal_depth,0)} <em>queued</em> / {nodes.reduce((n,x)=>n+x.duplicates_rejected,0)} <em>dupes</em>
+            </strong>
+            <span>{suppressed} alerts suppressed</span>
+          </div>
+          <div>
+            <small>AUDIT CHAIN</small>
+            <strong className={verification?.valid?'match':verification?'danger':'muted'}>
+              {verification?.valid?'VERIFIED ✓':verification?'FAILED':'UNVERIFIED'}
+            </strong>
+            <span>{verification?.entries??'—'} hash-linked entries</span>
+          </div>
+        </div>
+
+        <main className="content">
+          {error&&<div role="alert" className="notice">{error} <button onClick={()=>void refresh()}>Retry</button></div>}
+          {skew>0&&<div className="notice">{skew} negative latency samples excluded due to clock skew.</div>}
+          {(tab==='Fleet Overview'||tab==='Incidents')&&<MedhaAI session={session}/>}
+          {tab==='Fleet Overview'&&<Fleet nodes={nodes} points={points} thresholds={thresholds} now={now} connection={connection} onDeleteNode={handleDeleteNode}/>}
+          {tab==='Incidents'&&<Incidents points={points} session={session} incidents={incidents} remediations={remediations} refresh={refresh} onAudit={()=>setTab('Audit Log')}/>}
+          {tab==='Egress Proof'&&<ProofPage session={session}/>}
+          {tab==='Audit Log'&&<AuditPage session={session}/>}
+          {tab==='Demo Lab'&&<DemoPage session={session}/>}
+          {tab==='Validation'&&<ValidationPage session={session} latencies={latencies} reset={()=>setLatencies([])}/>}
+          {tab==='Limitations'&&<LimitationsPage/>}
+          {tab==='Fleet Overview'&&<TelemetryFeed points={points} connected={connection==='CONNECTED'}/>}
+          <ConsoleFooter session={session} connected={connection==='CONNECTED'}/>
+        </main>
+      </div>
+
+      {adding&&<AddCollector session={session} close={()=>setAdding(false)}/>}
+    </div>
+  );
+}
+
 function AddCollector({session,close}:{session:Session;close:()=>void}){
- const ref=useRef<HTMLDialogElement>(null);const [result,setResult]=useState<{token:string;collector_id:string;collector_command:string;install_command:string;windows_install_command?:string}|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [reveal,setReveal]=useState(false);const [copied,setCopied]=useState('');
- useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close();},[]);
- async function mint(){setBusy(true);setError('');try{setResult(await post(session,'/api/collectors/tokens'));}catch(e){setError(e instanceof Error?e.message:'Unable to mint token.');}finally{setBusy(false);}}
- async function copy(value:string,label:string){try{if(navigator.clipboard)await navigator.clipboard.writeText(value);else{const input=document.createElement('textarea');input.value=value;document.body.append(input);input.select();if(!document.execCommand('copy'))throw Error();input.remove();}setCopied(label);}catch{setError('Copy unavailable. Reveal and select the command manually.');}}
- return <dialog ref={ref} className="modal" onCancel={close}><div className="row"><div><p className="eyebrow">SETU / ONBOARDING</p><h2>Add a collector</h2></div><button onClick={close} aria-label="Close Add Collector">✕</button></div><p className="muted">Credentials are pinned to <strong>{session.tenant}</strong> in {session.region}.</p>{error&&<p role="alert" className="error">{error}</p>}{!result?<><div className="notice">{import.meta.env.VITE_HOSTED==='true'?<>Paste the command into your device terminal to stream encrypted, privacy-filtered metrics to this workspace. Keep the collector running to stay live.</>:<>Copy your trusted CA to the target machine as <code>ca.pem</code>. The installer downloads from your local receiver only.</>}</div><button className="primary" onClick={()=>void mint()} disabled={busy}>{busy?'Creating…':'Generate collector token'}</button></>:<><label>Collector ID<code className="hash">{result.collector_id}</code></label><div className="row"><label>Bearer token<code className="hash">{reveal?result.token:'••••••••••••••••••••••••••••••••'}</code></label><button onClick={()=>setReveal(!reveal)}>{reveal?'Mask':'Reveal'}</button><button onClick={()=>void copy(result.token,'Token')}>Copy token</button></div>{[['POSIX one-liner (Linux / macOS)',result.install_command],...(result.windows_install_command?[['Windows PowerShell one-liner',result.windows_install_command]]:[]),['Manual fallback',result.collector_command]].map(([label,command])=><section key={label}><div className="row"><h4>{label}</h4><button onClick={()=>void copy(command,label)}>Copy command</button></div><pre>{reveal?command:command.replaceAll(result.token,'[MASKED TOKEN]')}</pre></section>)}<p className="fine">Copy includes the actual credential. Keep commands out of shared logs. The local Demo Lab requires adding <code>--demo-controls</code> to your collector command.</p><p role="status" className="match">{copied&&`${copied} copied`}</p></>}</dialog>;
+  const ref=useRef<HTMLDialogElement>(null);
+  const [result,setResult]=useState<{token:string;collector_id:string;collector_command:string;install_command:string;windows_install_command?:string}|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const [reveal,setReveal]=useState(false);
+  const [copied,setCopied]=useState('');
+
+  useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close();},[]);
+
+  async function mint(){
+    setBusy(true);
+    setError('');
+    try{
+      setResult(await post(session,'/api/collectors/tokens'));
+    }catch(e){
+      setError(e instanceof Error?e.message:'Unable to mint token.');
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  async function copy(value:string,label:string){
+    try{
+      if(navigator.clipboard)await navigator.clipboard.writeText(value);
+      else{
+        const input=document.createElement('textarea');
+        input.value=value;
+        document.body.append(input);
+        input.select();
+        if(!document.execCommand('copy'))throw Error();
+        input.remove();
+      }
+      setCopied(label);
+    }catch{
+      setError('Copy unavailable. Reveal and select the command manually.');
+    }
+  }
+
+  return (
+    <dialog ref={ref} className="modal" onCancel={close}>
+      <div className="row">
+        <div>
+          <p className="eyebrow">SETU / ONBOARDING</p>
+          <h2>Add a collector</h2>
+        </div>
+        <button onClick={close} aria-label="Close Add Collector">✕</button>
+      </div>
+      <p className="muted">Credentials are pinned to <strong>{session.tenant}</strong> in {session.region}.</p>
+      {error&&<p role="alert" className="error">{error}</p>}
+      {!result ? (
+        <>
+          <div className="notice">
+            {import.meta.env.VITE_HOSTED==='true' ? (
+              <>Paste the command into your device terminal to stream encrypted, privacy-filtered metrics to this workspace. Keep the collector running to stay live.</>
+            ) : (
+              <>Copy your trusted CA to the target machine as <code>ca.pem</code>. The installer downloads from your local receiver only.</>
+            )}
+          </div>
+          <button className="primary" onClick={()=>void mint()} disabled={busy}>
+            {busy?'Creating…':'Generate collector token'}
+          </button>
+        </>
+      ) : (
+        <>
+          <label>Collector ID<code className="hash">{result.collector_id}</code></label>
+          <div className="row">
+            <label>Bearer token<code className="hash">{reveal?result.token:'••••••••••••••••••••••••••••••••'}</code></label>
+            <button onClick={()=>setReveal(!reveal)}>{reveal?'Mask':'Reveal'}</button>
+            <button onClick={()=>void copy(result.token,'Token')}>Copy token</button>
+          </div>
+          {[
+            ['POSIX one-liner (Linux / macOS)',result.install_command],
+            ...(result.windows_install_command?[['Windows PowerShell one-liner',result.windows_install_command]]:[]),
+            ['Manual fallback',result.collector_command]
+          ].map(([label,command])=>(
+            <section key={label}>
+              <div className="row">
+                <h4>{label}</h4>
+                <button onClick={()=>void copy(command,label)}>Copy command</button>
+              </div>
+              <pre>{reveal?command:command.replaceAll(result.token,'[MASKED TOKEN]')}</pre>
+            </section>
+          ))}
+          <p className="fine">Copy includes the actual credential. Keep commands out of shared logs. The local Demo Lab requires adding <code>--demo-controls</code> to your collector command.</p>
+          <p role="status" className="match">{copied&&`${copied} copied`}</p>
+        </>
+      )}
+    </dialog>
+  );
 }

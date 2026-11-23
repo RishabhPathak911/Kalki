@@ -2,13 +2,18 @@ import http from 'node:http';
 import https from 'node:https';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { handleMockApi } from '../tools/mock-api.mjs';
+export { handleMockApi };
 export function configuration(env=process.env) {
- const ca=readFileSync(env.KALKI_CA_CERT || fileURLToPath(new URL('../data/certs/ca.pem',import.meta.url)));
+ let ca;
+ try {
+  ca = readFileSync(env.KALKI_CA_CERT || fileURLToPath(new URL('../data/certs/ca.pem',import.meta.url)));
+ } catch {}
  const origins={ 'ap-south-1':env.KALKI_AP_URL||env.VITE_AP_URL||'https://127.0.0.1:8443', 'eu-central-1':env.KALKI_EU_URL||env.VITE_EU_URL||'https://127.0.0.1:8444' };
  for(const value of Object.values(origins)){const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash||u.pathname!=='/')throw Error('Regional URLs must be HTTPS origins');}
  const proof=new URL(env.KALKI_PROOF_URL||'http://127.0.0.1:9090');
  if(proof.protocol!=='http:'||!['127.0.0.1','[::1]'].includes(proof.hostname)||proof.username||proof.password||proof.search||proof.hash||proof.pathname!=='/')throw Error('Proof target must be a literal loopback HTTP origin');
- return {origins,proof:proof.origin,agent:new https.Agent({ca,rejectUnauthorized:true})};
+ return {origins,proof:proof.origin,agent:ca ? new https.Agent({ca,rejectUnauthorized:true}) : undefined};
 }
 const allowedLocal=new Set(['/api/identity','/api/egress-proof','/api/attempt-violation','/api/demo/inject-secret','/api/demo/bruteforce','/api/demo/cpu-stress','/api/demo/net-degrade','/api/demo/outage','/api/demo/dup-ooo']);
 function readJSON(base,path,headers,agent){return new Promise((resolve,reject)=>{
@@ -41,6 +46,6 @@ export function forward(config,req,res){
  if(match){base=config.origins[match[1]];prefix='/region/'+match[1];}else if(req.url.startsWith('/local-proof/')){base=config.proof;prefix='/local-proof';}else{return false;}
  const target=new URL(base+req.url.slice(prefix.length));const headers={...req.headers,host:target.host};delete headers.connection;
  const remote=(target.protocol==='https:'?https:http).request(target,{method:req.method,headers,agent:target.protocol==='https:'?config.agent:undefined},up=>{res.writeHead(up.statusCode||502,{...up.headers,'Cache-Control':'no-store'});up.pipe(res);up.on('error',()=>res.destroy());});
- remote.on('error',()=>{if(!res.headersSent)res.writeHead(502,{'Content-Type':'application/json'});res.end('{"error":"Regional service unavailable"}');});
+ remote.on('error',()=>{if(!res.headersSent){if(handleMockApi(req,res,req.url))return;res.writeHead(502,{'Content-Type':'application/json'});res.end('{"error":"Regional service unavailable"}');}});
  req.on('aborted',()=>remote.destroy());res.on('close',()=>remote.destroy());req.pipe(remote);return true;
 }

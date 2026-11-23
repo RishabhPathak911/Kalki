@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="gfx" viewBox="0 0 500 300" aria-hidden="true"><style>*{fill:none;stroke:white;stroke-width:1.5;vector-effect:non-scaling-stroke}.mq{stroke-dasharray:60 14 30 10 90 12}</style>
+          <rect x="45" y="18" width="170" height="90" rx="4"/>
+          <rect x="62" y="40" width="26" height="26" rx="1"/>
+          <path d="M70 34v6M80 34v6M70 66v6M80 66v6M56 48h6M56 58h6M88 48h6M88 58h6"/>
+          <path d="M110 44h60M110 56h50M110 68h60M110 82h28"/>
+          <path class="draw" d="M215 63h60l16-48 22 48 22 24 24-27 18 27h60 0" style="stroke-dasharray:900"/>
+          <circle cx="474" cy="66" r="3"/>
+          <circle cx="16" cy="149" r="9"/><path d="M13 144l8 5-8 5z"/>
+          <path id="ln" class="draw" d="M0 190L45 178 90 192 135 160 180 178 225 150 270 168 315 150 360 182 405 165 450 178 500 160"/>
+          <path d="M0 196H500M0 196v-10M45 196v-6M90 196v-10M135 196v-6M180 196v-10M225 196v-6M270 196v-10M315 196v-6M360 196v-10M405 196v-6M450 196v-10"/>
+          <g>
+            <circle cx="6" cy="228" r="3.5"/><circle cx="6" cy="244" r="3.5"/><circle cx="6" cy="260" r="3.5"/><circle cx="6" cy="276" r="3.5"/>
+            <path class="mq" d="M26 228H500"/><path class="mq" d="M26 244H500"/><path class="mq" d="M26 260H500"/><path class="mq" d="M26 276H500"/>
+          </g>
+        </svg>
