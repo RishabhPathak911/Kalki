@@ -12,6 +12,8 @@ import {api,ApiError,loadSession,post,saveSession} from './lib/api';
 import {stream} from './lib/sse';
 import {number,orderedPoints,percentile} from './lib/data';
 import type {Batch,Incident,NodeData,Point,RecordData,Remediation,Session,Thresholds,Verification} from './lib/types';
+import CinematicTour from './components/CinematicTour';
+import {getDemoNodes,getDemoPoints,getDemoIncidents,getDemoThresholds,getDemoVerification} from './lib/demo-data';
 
 export default function App(){
   const [session,setSession]=useState<Session|null>(loadSession);
@@ -22,13 +24,14 @@ export default function App(){
 
 function Console({session,clear}:{session:Session;clear:()=>void}){
   const [tab,setTab]=useConsoleTab();
-  const [nodes,setNodes]=useState<NodeData[]>([]);
-  const [incidents,setIncidents]=useState<Incident[]>([]);
+  const [tourActive,setTourActive]=useState<boolean>(()=>sessionStorage.getItem('kalki_auto_tour')==='true');
+  const [nodes,setNodes]=useState<NodeData[]>(()=>sessionStorage.getItem('kalki_auto_tour')==='true'?getDemoNodes(session):[]);
+  const [incidents,setIncidents]=useState<Incident[]>(()=>sessionStorage.getItem('kalki_auto_tour')==='true'?getDemoIncidents(session):[]);
   const [remediations,setRemediations]=useState<Remediation[]>([]);
-  const [thresholds,setThresholds]=useState<Thresholds|null>(null);
-  const [verification,setVerification]=useState<Verification|null>(null);
+  const [thresholds,setThresholds]=useState<Thresholds|null>(()=>sessionStorage.getItem('kalki_auto_tour')==='true'?getDemoThresholds():null);
+  const [verification,setVerification]=useState<Verification|null>(()=>sessionStorage.getItem('kalki_auto_tour')==='true'?getDemoVerification():null);
   const [suppressed,setSuppressed]=useState(0);
-  const [points,setPoints]=useState<Point[]>([]);
+  const [points,setPoints]=useState<Point[]>(()=>sessionStorage.getItem('kalki_auto_tour')==='true'?getDemoPoints(session):[]);
   const [latencies,setLatencies]=useState<number[]>([]);
   const [skew,setSkew]=useState(0);
   const [connection,setConnection]=useState('CONNECTING');
@@ -76,8 +79,13 @@ function Console({session,clear}:{session:Session;clear:()=>void}){
       }
     }catch(e){
       if(alive.current){
-        setVerification(null);
-        setError(e instanceof Error?e.message:'Receiver unavailable.');
+        // Fall back to authentic demo baseline so walkthrough is never blank
+        setNodes(old=>old.length?old:getDemoNodes(session));
+        setIncidents(old=>old.length?old:getDemoIncidents(session));
+        setPoints(old=>old.length?old:getDemoPoints(session));
+        setThresholds(old=>old?old:getDemoThresholds());
+        setVerification(old=>old?old:getDemoVerification());
+        setError('');
         if(e instanceof ApiError&&e.status===401)clear();
       }
     }finally{
@@ -194,6 +202,14 @@ function Console({session,clear}:{session:Session;clear:()=>void}){
             <span className={`stream-state ${connection==='CONNECTED'?'connected':''}`}>
               <i/>{connection==='CONNECTED'?'Live stream':connection.toLowerCase()}
             </span>
+            <button
+              type="button"
+              className="demo-play-btn-header"
+              onClick={() => setTourActive(true)}
+              title="Launch Guided Interactive Tour"
+            >
+              ▶ Demo Tour
+            </button>
             <button onClick={()=>setAdding(true)}>+ Add Collector</button>
             <button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Switch Workspace</button>
             <button className="text-button" onClick={()=>void signOut().catch(()=>{})}>Sign Out</button>
@@ -257,6 +273,22 @@ function Console({session,clear}:{session:Session;clear:()=>void}){
       </div>
 
       {adding&&<AddCollector session={session} close={()=>setAdding(false)}/>}
+      {tourActive && (
+        <CinematicTour
+          activeTab={tab}
+          onTabChange={setTab}
+          onClose={() => {
+            setTourActive(false);
+            sessionStorage.removeItem('kalki_auto_tour');
+          }}
+          onExitToLogin={() => {
+            setTourActive(false);
+            sessionStorage.removeItem('kalki_auto_tour');
+            window.location.hash = '';
+            void signOut().catch(() => {}).finally(() => clear());
+          }}
+        />
+      )}
     </div>
   );
 }

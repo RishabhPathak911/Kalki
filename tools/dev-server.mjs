@@ -2,6 +2,7 @@ import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleMockApi } from './mock-api.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const initialPort = Number(process.env.PORT || 8080);
@@ -22,6 +23,9 @@ const types = {
 const server = http.createServer(async (req, res) => {
   try {
     const requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (requested.startsWith('/region/')) {
+      if (handleMockApi(req, res, requested)) return;
+    }
     if (requested === '/app') {
       if (process.env.KALKI_DASHBOARD_URL) {
         res.writeHead(302, { Location: process.env.KALKI_DASHBOARD_URL });

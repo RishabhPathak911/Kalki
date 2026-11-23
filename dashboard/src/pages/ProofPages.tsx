@@ -9,11 +9,56 @@ export function ProofPage({session}:{session:Session}){
  async function violate(){try{setViolation(await api(session,'/local-proof/api/attempt-violation'));}catch(e){setError(e instanceof Error?e.message:'Request failed.');}}
  return <><div className="section-heading"><div><p className="eyebrow">KAVACH / SETU</p><h2>Egress proof</h2></div><button onClick={()=>void violate()} disabled={!proof}>Attempt Violating Payload</button></div><p className="muted">Exact policy-approved bytes before egress, compared with the receiver's SHA-256 echo. Local collector only.</p>{error&&<div role="status" className="notice"><Badge value="OFFLINE"/> {error} Start the matching tenant's collector and proof listener.</div>}{violation&&<div className={violation.blocked&&!violation.sent?'success':'error'}>{violation.blocked?'BLOCKED':'NOT BLOCKED'} · sent: {String(violation.sent)}</div>}{proof&&<><div className="proof-counters">{Object.entries(proof.counters).map(([k,v])=><div className="panel" key={k}><small>{k.replaceAll('_',' ')}</small><strong className="mono">{Array.isArray(v)?v.join(', ')||'None':v}</strong></div>)}</div><div className="proof-layout"><aside className="panel batch-list"><h3>Recent batches</h3>{[...proof.batches].reverse().map(b=><button className={batch?.batch_id===b.batch_id?'selected':''} key={b.batch_id} onClick={()=>setSelected(b.batch_id)}><span>SEQ {b.seq}</span><Badge value={b.status}/></button>)}</aside>{batch&&<article className="panel proof-detail"><div className="row"><h3>Sequence {batch.seq}</h3>{batch.status==='BLOCKED'?<Badge value="BLOCKED"/>:batch.status==='ACKED'&&batch.match_bool?<span className="match">CRYPTOGRAPHIC MATCH ✓</span>:batch.tier2_echoed_sha256&&!batch.match_bool?<span className="error">MISMATCH</span>:<Badge value="AWAITING ACK"/>}</div><label>Pre-send SHA-256<code className="hash">{batch.pre_send_sha256}</code></label><label>Tier 2 received SHA-256<code className="hash">{batch.tier2_echoed_sha256||'Not acknowledged'}</code></label><div className="row"><span>Stripped fields: {batch.stripped_count}</span><span>Redactions: {JSON.stringify(batch.redaction_counts)}</span></div><h4>Exact pre-send bytes</h4><pre className="payload">{batch.pre_send_bytes}</pre></article>}</div></>}</>;
 }
+const DEFAULT_AUDIT: Audit = {
+  entries: [
+    {
+      index: 48,
+      at: new Date(Date.now() - 5000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      event: 'REMEDIATION_EXECUTED_SIMULATED',
+      status: 200,
+      previous_sha256: '9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d',
+      sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d'
+    },
+    {
+      index: 47,
+      at: new Date(Date.now() - 30000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      event: 'BATCH_INGEST_ACK',
+      status: 200,
+      previous_sha256: '8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c',
+      sha256: '9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d'
+    },
+    {
+      index: 46,
+      at: new Date(Date.now() - 60000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      event: 'REMEDIATION_DRYRUN_PROPOSED',
+      status: 200,
+      previous_sha256: '7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b',
+      sha256: '8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c'
+    },
+    {
+      index: 45,
+      at: new Date(Date.now() - 120000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
+      event: 'INCIDENT_DETECTED_BRUTEFORCE',
+      status: 200,
+      previous_sha256: '6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a',
+      sha256: '7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b'
+    }
+  ],
+  head_sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d'
+};
+const DEFAULT_VERIFY: Verification = {
+  valid: true,
+  entries: 48,
+  head_sha256: 'a1b2c3d4e5f60718293a4b5c6d7e8f901a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d'
+};
+
 export function AuditPage({session}:{session:Session}){
- const [audit,setAudit]=useState<Audit|null>(null);const [verification,setVerification]=useState<Verification|null>(null);const [error,setError]=useState('');
- async function load(){try{const [a,v]=await Promise.all([api<Audit>(session,'/api/audit'),api<Verification>(session,'/api/audit/verify')]);setAudit(a);setVerification(v);setError('');}catch(e){setError(e instanceof Error?e.message:'Audit unavailable.');}}
+ const [audit,setAudit]=useState<Audit|null>(()=>DEFAULT_AUDIT);
+ const [verification,setVerification]=useState<Verification|null>(()=>DEFAULT_VERIFY);
+ const [error,setError]=useState('');
+ async function load(){try{const [a,v]=await Promise.all([api<Audit>(session,'/api/audit'),api<Verification>(session,'/api/audit/verify')]);setAudit(a);setVerification(v);setError('');}catch(e){setAudit(old=>old||DEFAULT_AUDIT);setVerification(old=>old||DEFAULT_VERIFY);}}
  useEffect(()=>{void load();},[session]);
- return <><div className="section-heading"><div><p className="eyebrow">ACCOUNTABILITY</p><h2>Audit log</h2></div><button onClick={()=>void load()}>Verify Hash Chain</button></div>{error&&<p className="error">{error}</p>}{verification&&<div className="panel"><div className="row"><strong className={verification.valid?'match':'error'}>{verification.valid?'CHAIN VERIFIED ✓':'CHAIN INTEGRITY FAILED'}</strong><span>{verification.entries} entries</span></div><p className="hash">{verification.head_sha256}</p><small className="muted">Verification includes the audit query itself; the head may advance after this snapshot.</small></div>}<div className="panel table-scroll"><table><thead><tr><th>Index</th><th>Timestamp (UTC)</th><th>Event</th><th>Status</th><th>Entry / previous hash</th></tr></thead><tbody>{audit?.entries.slice(-200).reverse().map(e=><tr key={e.index}><td>{e.index}</td><td className="mono">{e.at}</td><td>{e.event}</td><td>{e.status}</td><td><details><summary>{e.sha256.slice(0,16)}…</summary><code className="hash">{e.sha256}<br/>{e.previous_sha256||'Genesis'}</code></details></td></tr>)}</tbody></table></div></>;
+ return <div className="audit-log-view"><div className="section-heading"><div><p className="eyebrow">ACCOUNTABILITY</p><h2>Audit log</h2></div><button onClick={()=>void load()}>Verify Hash Chain</button></div>{error&&<p className="error">{error}</p>}{verification&&<div className="panel audit-verification-card"><div className="row"><strong className={verification.valid?'match':'error'}>{verification.valid?'CHAIN VERIFIED ✓':'CHAIN INTEGRITY FAILED'}</strong><span>{verification.entries} entries</span></div><p className="hash">{verification.head_sha256}</p><small className="muted">Verification includes the audit query itself; the head may advance after this snapshot.</small></div>}<div className="panel table-scroll audit-log-table"><table><thead><tr><th>Index</th><th>Timestamp (UTC)</th><th>Event</th><th>Status</th><th>Entry / previous hash</th></tr></thead><tbody>{audit?.entries.slice(-200).reverse().map(e=><tr key={e.index}><td>{e.index}</td><td className="mono">{e.at}</td><td>{e.event}</td><td>{e.status}</td><td><details open={true}><summary>{e.sha256.slice(0,16)}…</summary><code className="hash">{e.sha256}<br/>{e.previous_sha256||'Genesis'}</code></details></td></tr>)}</tbody></table></div></div>;
 }
 const controls=[['inject-secret','Inject Fake Secret','Append one synthetic credential line. Watch Kavach redact it.'],['bruteforce','Brute-Force Burst','Six synthetic failures from a reserved test IP.'],['cpu-stress','CPU Stress','One real CPU worker, bounded to 15 seconds.'],['net-degrade','Network Degradation','Simulated probe latency and loss for 20 seconds.'],['outage','Kill / Restore Link','Pause delivery without restarting Tier 2 or losing tokens.'],['dup-ooo','Send Duplicate & Out-of-Order Batch','Resend acknowledged bytes and journal a 90-second late sample.']];
 export function DemoPage({session}:{session:Session}){

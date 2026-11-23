@@ -1,0 +1,827 @@
+/* dashboard/src/cinematic-demo.css */
+/* High-End Cinematography Walkthrough & Lens Rack-Focus Engine */
+
+/* ==========================================================================
+   1. LOGIN PAGE: EDITORIAL LAUNCHER CARD
+   ========================================================================== */
+.demo-launcher-card {
+  margin: 18px 0 24px 0;
+  padding: 16px 20px;
+  background: rgba(14, 18, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.demo-launcher-card:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.demo-launcher-info {
+  flex: 1;
+  text-align: left;
+}
+
+.demo-launcher-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.demo-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: demoPulseDot 2s infinite ease-in-out;
+}
+
+@keyframes demoPulseDot {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.demo-launcher-info h3 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #f8fafc;
+  margin: 0 0 3px 0;
+  letter-spacing: -0.01em;
+}
+
+.demo-launcher-info p {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #8fa0b5;
+  margin: 0;
+}
+
+.demo-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  color: #090c15 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.demo-play-btn:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.demo-play-btn:active {
+  transform: scale(0.98);
+}
+
+.demo-play-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #090c15;
+  color: #ffffff;
+  padding-left: 2px;
+}
+
+.demo-play-btn-header {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 5px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  padding: 5px 12px !important;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.demo-play-btn-header:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   2. CINEMATIC RACK-FOCUS (LENS BLUR) & PRECISION VIEW FINDER RETICLE
+   ========================================================================== */
+/* Lens rack-focus backdrop: soft blur, maintains natural screen brightness (NOT black!) */
+.cinematic-lens-blur-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 11, 18, 0.22); /* Ultra-translucent natural tint */
+  backdrop-filter: blur(5px); /* Optical camera rack-focus blur */
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 99900;
+  pointer-events: none;
+  transition: clip-path 0.45s cubic-bezier(0.22, 1, 0.36, 1), -webkit-clip-path 0.45s cubic-bezier(0.22, 1, 0.36, 1), backdrop-filter 0.4s ease;
+}
+
+/* Explicit class for the focused element so it is 100% unblurred and sharp */
+.cinematic-focused-element {
+  position: relative !important;
+  z-index: 99912 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  opacity: 1 !important;
+}
+
+/* High-precision bounding frame around the active target */
+.cinematic-precision-reticle {
+  position: fixed;
+  border: 1.5px solid rgba(56, 189, 248, 0.9);
+  border-radius: 6px;
+  box-shadow: 
+    0 0 0 1px rgba(56, 189, 248, 0.25),
+    0 16px 48px rgba(0, 0, 0, 0.45),
+    inset 0 0 20px rgba(56, 189, 248, 0.05);
+  pointer-events: none;
+  z-index: 99915;
+  transition: all 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  filter: none !important;
+}
+
+/* Precision corner registration crosshairs */
+.cinematic-precision-reticle::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 12px;
+  height: 12px;
+  border-top: 2.5px solid #38bdf8;
+  border-left: 2.5px solid #38bdf8;
+  pointer-events: none;
+}
+
+.cinematic-precision-reticle::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-bottom: 2.5px solid #38bdf8;
+  border-right: 2.5px solid #38bdf8;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   3. HIGH-PRECISION VIEW FINDER CURSOR (NEEDLE POINTER)
+   ========================================================================== */
+.cinematic-virtual-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 34px;
+  height: 34px;
+  z-index: 100000;
+  pointer-events: none;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.cursor-arrow-body {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+  animation: cursorSubtleHover 2.4s ease-in-out infinite;
+}
+
+@keyframes cursorSubtleHover {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(2px, 2px); }
+}
+
+.cursor-click-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid #38bdf8;
+  pointer-events: none;
+  animation: cursorRingPing 0.75s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+@keyframes cursorRingPing {
+  0% { transform: scale(0.3); opacity: 1; border-color: #38bdf8; }
+  100% { transform: scale(2.6); opacity: 0; border-color: #ffffff; }
+}
+
+.cursor-tag {
+  position: absolute;
+  left: 28px;
+  top: 6px;
+  background: rgba(11, 14, 22, 0.94);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: tagFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tagFadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   4. EDITORIAL HUD CALLOUT CARD
+   ========================================================================== */
+.cinematic-hud-card {
+  position: fixed;
+  z-index: 99950;
+  width: 440px;
+  max-width: 90vw;
+  background: rgba(13, 17, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 22px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: hudCardAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes hudCardAppear {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.hud-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  padding: 3px 9px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.hud-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.hud-desc {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #94a3b8;
+  margin: 0 0 18px 0;
+}
+
+.hud-desc strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.hud-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.hud-progress-pip {
+  flex: 1;
+  height: 2.5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.3s;
+}
+
+.hud-progress-pip.done {
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
+}
+
+.hud-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hud-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 13px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hud-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.hud-btn-primary {
+  background: #f8fafc;
+  color: #090c15 !important;
+  border: none;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.hud-btn-primary:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
+}
+
+.hud-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 11.5px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.hud-btn-ghost:hover {
+  color: #cbd5e1;
+}
+
+/* ==========================================================================
+   5. DEVELOPER TERMINAL PROTOTYPE (TIER-1 COLLECTOR)
+   ========================================================================== */
+.cinematic-terminal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 11, 18, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 99990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: termFadeIn 0.35s ease-out forwards;
+}
+
+@keyframes termFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cinematic-terminal-window {
+  width: 860px;
+  max-width: 95vw;
+  height: 520px;
+  max-height: 85vh;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  animation: termPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes termPopIn {
+  0% { transform: scale(0.94) translateY(18px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.cinematic-terminal-header {
+  height: 38px;
+  background: #0d121d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  user-select: none;
+}
+
+.terminal-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.terminal-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.dot-red { background: #ef4444; }
+.dot-yellow { background: #f59e0b; }
+.dot-green { background: #10b981; }
+
+.terminal-title {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #7d8ea3;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-badge {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.terminal-controls-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.terminal-ctrl-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #8fa1b8;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.terminal-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cinematic-terminal-body {
+  flex: 1;
+  padding: 18px 20px;
+  overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #c9d5e8;
+  background: #080b13;
+}
+
+.terminal-line {
+  margin: 3px 0;
+  word-break: break-all;
+  white-space: pre-wrap;
+  animation: lineReveal 0.2s ease-out;
+}
+
+@keyframes lineReveal {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.term-time { color: #475569; margin-right: 8px; font-size: 11px; }
+.term-cmd { color: #ffffff; font-weight: 600; }
+.term-prompt { color: #38bdf8; font-weight: 600; margin-right: 6px; }
+.term-sys { color: #60a5fa; font-weight: 500; }
+.term-prana { color: #34d399; font-weight: 500; }
+.term-kavach { color: #fbbf24; font-weight: 600; }
+.term-nadi { color: #a78bfa; font-weight: 500; }
+.term-setu { color: #22d3ee; font-weight: 500; }
+.term-ack { color: #10b981; font-weight: 600; }
+
+.cinematic-terminal-footer {
+  height: 48px;
+  background: #0a0e18;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.terminal-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.terminal-mini-bar {
+  width: 140px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.terminal-mini-fill {
+  height: 100%;
+  background: #38bdf8;
+  transition: width 0.3s ease;
+}
+
+.terminal-actions-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.terminal-action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.terminal-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.terminal-action-primary {
+  background: #f8fafc;
+  color: #090c15 !important;
+  border: none;
+  font-weight: 600;
+}
+
+.terminal-action-primary:hover {
+  background: #ffffff;
+}
+
+/* ==========================================================================
+   6. MINIMIZED FLOATING DOCK WIDGET
+   ========================================================================== */
+.cinematic-dock-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99980;
+  background: rgba(13, 17, 26, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: dockSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.25s;
+}
+
+@keyframes dockSlideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.cinematic-dock-widget:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.dock-icon {
+  font-size: 15px;
+}
+
+.dock-text {
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.dock-text strong {
+  color: #f8fafc;
+}
+
+.dock-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* ==========================================================================
+   7. COMPLETION MODAL & MOTIVATING STATEMENT
+   ========================================================================== */
+.cinematic-victory-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 11, 18, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 100010;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: victoryBackdropFade 0.4s ease-out forwards;
+}
+
+@keyframes victoryBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cinematic-victory-card {
+  width: 580px;
+  max-width: 95vw;
+  background: #0d121c;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  padding: 38px 34px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: victoryCardPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes victoryCardPop {
+  0% { transform: scale(0.92) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.victory-icon-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin: 0 auto 16px auto;
+}
+
+.victory-pill {
+  display: inline-block;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  margin-bottom: 12px;
+}
+
+.victory-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 14px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.victory-statement {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #94a3b8;
+  margin: 0 0 28px 0;
+  padding: 0 10px;
+}
+
+.victory-statement strong {
+  color: #f1f5f9;
+}
+
+.victory-features-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.victory-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.victory-feature-item svg {
+  color: #34d399;
+}
+
+.ready-to-go-btn {
+  background: #f8fafc;
+  color: #090c15 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 13px 32px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ready-to-go-btn:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.3);
+}
+
+.ready-to-go-btn:active {
+  transform: scale(0.98);
+}
